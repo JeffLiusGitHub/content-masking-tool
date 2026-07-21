@@ -67,7 +67,7 @@ def mask_pdf_to_markdown(path: Path, engine, vault: Vault) -> tuple[str, list[st
     new_texts = engine.mask_spanned(spanned, vault)
     pages = [
         text
-        for span, text in zip(spanned.spans, new_texts)
+        for span, text in zip(spanned.spans, new_texts, strict=False)
         if span.source_ref is not None
     ]
     return "\n\n".join(pages) + "\n", warnings

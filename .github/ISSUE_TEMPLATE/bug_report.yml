@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a problem with masking, restore, the GUI, or the MCP integration
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report a real-name leak here.** If a name that was on the
+        deny-list appeared unmasked (in output, the MCP channel, or over the
+        network), follow [SECURITY.md](../blob/main/SECURITY.md) instead — do
+        not open a public issue. Also **do not paste real names** anywhere in
+        this form; use placeholder names that still reproduce the bug.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what actually happened.
+      placeholder: Masked "demo.md" but ⟦ORG_…⟧ was not applied to "Placeholder Corp"…
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps. Attach a redacted sample document if helpful.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How were you using it?
+      options:
+        - Desktop GUI
+        - Command line (CLI)
+        - Inside Claude (MCP extension)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "v1.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS / architecture
+      options:
+        - macOS (Apple Silicon / arm64)
+        - macOS (Intel / x86_64)
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >
+        Audit-log lines or error output, with real names removed.
+      render: shell

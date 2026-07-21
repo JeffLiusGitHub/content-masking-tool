@@ -1,5 +1,11 @@
 # Content Masking Tool
 
+[![build](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/build.yml/badge.svg)](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/build.yml)
+[![checks](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/checks.yml/badge.svg)](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/checks.yml)
+[![CodeQL](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/codeql.yml/badge.svg)](https://github.com/JeffLiusGitHub/content-masking-tool/actions/workflows/codeql.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20(arm64%20%7C%20x86__64)-lightgrey)
+
 **English** ⬇️ | [中文](#中文说明)
 
 Local-first, reversible masking of company and people names in documents (MD/TXT/DOCX/PDF) before their content reaches an AI — shipped as a Windows and macOS desktop app, a CLI, and a Claude Desktop Extension (MCP), all in one executable.

@@ -8,7 +8,6 @@ apostrophes ("Noah D'angelo"), a single-letter surname ("Robin V"), and two
 people sharing a first name ("Leah Marchetti" / "Leah Okafor").
 """
 import json
-from pathlib import Path
 
 import pytest
 

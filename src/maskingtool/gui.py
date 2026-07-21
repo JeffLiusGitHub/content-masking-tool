@@ -368,7 +368,7 @@ class MaskingToolApp:
     def show_history(self):
         win = tk.Toplevel(self.root); win.title(self.tr("history_title")); win.geometry("900x420")
         cols = ("time", "action", "source", "output", "vault"); tree = ttk.Treeview(win, columns=cols, show="headings")
-        for col, title, width in zip(cols, (self.tr("time"), self.tr("action"), self.tr("source"), self.tr("history_output"), "Vault ID"), (170, 70, 160, 300, 180)):
+        for col, title, width in zip(cols, (self.tr("time"), self.tr("action"), self.tr("source"), self.tr("history_output"), "Vault ID"), (170, 70, 160, 300, 180), strict=False):
             tree.heading(col, text=title); tree.column(col, width=width)
         records = self.history.records()
         for i, row in enumerate(records): tree.insert("", "end", iid=str(i), values=(row.created_at[:19], self.tr(row.action), row.source_filename, row.output_path, row.vault_id))

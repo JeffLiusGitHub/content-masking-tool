@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims
+to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Open-source project health files: `SECURITY.md` (private vulnerability / leak
+  reporting), `CONTRIBUTING.md`, this changelog, and GitHub issue/PR templates.
+- CI: CodeQL static analysis, Dependabot updates (uv / GitHub Actions / npm),
+  and a `ruff` (blocking) + `mypy` (informational) checks workflow.
+- Ruff and mypy configuration in `pyproject.toml`.
+- README status badges.
+
+### Fixed
+- Removed unused imports and made `zip()` calls explicit about `strict=`
+  (ruff `F401`/`B905`).
+
+## [1.2.0] - 2026-07-21
+
+### Added
+- **Native macOS builds** for both Apple Silicon (arm64) and Intel (x86_64),
+  each frozen with a matching uv-managed standalone CPython (Tk bundled).
+- Dual-architecture macOS CI: native `macos-14` (arm64) and `macos-13` (x86_64)
+  runners producing per-architecture `.mcpb`, standalone ZIP, and checksums.
+- macOS installation and Claude Desktop connection instructions in the README
+  (English and 中文).
+- `.gitattributes` `export-ignore` rules to keep GitHub's auto-generated source
+  archive lean.
+
+### Fixed
+- macOS packaging: bundle presidio's Python sources so the
+  `recognizer_registry/../conf/default_recognizers.yaml` lookup resolves on
+  POSIX (Windows collapsed the `..` lexically, hiding the bug).
+- `tests/test_local_only.py`: no longer pre-closes the MCP server's stdin before
+  `communicate()`, which raised `ValueError` on POSIX.
+- macOS release artifacts are labelled by the actual interpreter architecture
+  instead of `uname -m`.
+
+### Notes
+- Builds remain unsigned; macOS Gatekeeper / Windows SmartScreen prompts are
+  expected. Signing and notarization are planned next.
+
+[Unreleased]: https://github.com/JeffLiusGitHub/content-masking-tool/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.0

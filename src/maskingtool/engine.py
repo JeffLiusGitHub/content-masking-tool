@@ -11,7 +11,6 @@ from presidio_analyzer import RecognizerResult
 
 from maskingtool.operators import apply_replacements
 from maskingtool.recognizers import (
-    DENYLIST_SCORE,
     build_denylist_recognizers,
     expand_person_name_parts,
 )

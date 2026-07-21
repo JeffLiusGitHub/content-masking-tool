@@ -23,13 +23,12 @@ import subprocess
 import sys
 import threading
 import urllib.parse
-from pathlib import Path
 
 import pytest
 
 from maskingtool.engine import MaskingEngine
 from maskingtool.operators import restore_text
-from maskingtool.pipeline import mask_file, restore_file
+from maskingtool.pipeline import mask_file
 from maskingtool.vault import Vault
 
 # names that will never occur by accident in logs/paths/library output
@@ -256,7 +255,6 @@ class TestStdioNeverLeaksOriginals:
         doc.write_text(DOC, encoding="utf-8")
 
         import maskingtool.config as config
-        import importlib
 
         old = os.environ.get(config.DATA_DIR_ENV)
         old_spawn = os.environ.get("MASKINGTOOL_NO_GUI_SPAWN")
