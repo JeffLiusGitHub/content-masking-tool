@@ -1,0 +1,24 @@
+# The masking tool guarantees byte-for-byte round-trips (INV-1). Text
+# fixtures and sources must check out with LF on every platform; otherwise
+# Windows CI (git autocrlf=true) rewrites them to CRLF and the round-trip
+# assertions — which compare masked/restored text against LF-normalized reads
+# — fail. Force LF in the working tree for all text we control.
+*.md       text eol=lf
+*.markdown text eol=lf
+*.txt      text eol=lf
+*.json     text eol=lf
+*.py       text eol=lf
+*.csv      text eol=lf
+*.html     text eol=lf
+
+# Windows-only scripts keep CRLF to stay safe under cmd.exe.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets: never normalize line endings.
+*.docx binary
+*.pdf  binary
+*.png  binary
+*.ico  binary
+*.mcpb binary
+*.zip  binary
