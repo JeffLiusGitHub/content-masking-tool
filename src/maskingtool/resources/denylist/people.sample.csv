@@ -1,0 +1,7 @@
+name
+# Optional people deny-list. Detection of random names is handled by the
+# built-in NER model — you usually don't need to add anything here.
+# Add one FULL name per line ONLY when you need a 100% guarantee for a
+# specific person (e.g. a name the NER model missed in a table). Bare first
+# names / surnames are covered automatically once the full name is listed.
+# Lines starting with # are ignored. Edits apply on the next masking call.

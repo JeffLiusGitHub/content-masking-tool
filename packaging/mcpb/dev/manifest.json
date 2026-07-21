@@ -1,0 +1,28 @@
+{
+  "manifest_version": "0.3",
+  "name": "content-masking-tool",
+  "display_name": "Content Masking Tool",
+  "version": "0.1.1",
+  "description": "Masks known company/people names in local documents before they reach the AI; restores them on request. Dev build — runs from the project venv on this machine.",
+  "author": {
+    "name": "Jeff Liu"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/main.py",
+    "mcp_config": {
+      "command": "C:\\Projects\\Content masking tool\\.venv\\Scripts\\python.exe",
+      "args": ["${__dirname}/server/main.py"]
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"]
+  },
+  "tools": [
+    { "name": "mask_document", "description": "Mask company/people names in a local document (.md/.txt/.docx/.pdf); returns masked text + vault_id" },
+    { "name": "restore_text", "description": "Restore original names into masked text using a vault_id" },
+    { "name": "restore_document", "description": "Restore original names into a masked file and write it next to the original" }
+  ],
+  "keywords": ["privacy", "masking", "pii"],
+  "license": "Proprietary"
+}

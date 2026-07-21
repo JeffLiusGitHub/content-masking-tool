@@ -1,0 +1,6 @@
+name
+# Optional company deny-list. Detection of random names is handled by the
+# built-in NER model — you usually don't need to add anything here.
+# Add one company name per line ONLY when you need a 100% guarantee for a
+# specific name (e.g. one the NER model missed). Exact match, case-sensitive.
+# Lines starting with # are ignored. Edits apply on the next masking call.

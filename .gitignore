@@ -1,0 +1,51 @@
+.venv/
+.build-venv/
+node_modules/
+__pycache__/
+*.pyc
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Local Claude / MCP configuration
+.claude/settings.local.json
+.mcp.json
+
+# Sensitive network captures and generated audit output
+packaging/audit/*.flows
+packaging/audit/*.log
+packaging/audit/*.jsonl
+packaging/audit/archive/
+
+# Local screenshots and generated test evidence
+install screenshot/
+Test result/
+SOFTWARE_PROMPT_AUDIT_ZH.md
+docs/screenshots/*.png
+docs/screenshots/*.gif
+
+# Generated demo outputs (keep the original demo inputs)
+demo/*.masked.*
+demo/*.restored.*
+
+# Runtime data must never enter source control
+/vaults/
+/reviews/
+/audit/
+/vault_*.json
+
+# Local secrets and certificates
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# OS and test/tool caches
+.DS_Store
+Thumbs.db
+.coverage
+htmlcov/

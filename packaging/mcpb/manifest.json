@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.3",
+  "name": "content-masking-tool",
+  "display_name": "Content Masking Tool",
+  "version": "1.2.0",
+  "description": "Masks people/company names in local documents before their content reaches the AI, and restores them on request. Every mask request requires human approval in a local review window before any content enters the conversation. Fully local: detection (deny-list + built-in NER model), token vault, review, and restore all run on this machine. No fixed name list ships in the package — add names via the editable CSV in app data; random names are caught by the bundled NER model.",
+  "author": {
+    "name": "Jeff Liu"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/maskingtool-server/maskingtool-server.exe",
+    "mcp_config": {
+      "command": "${__dirname}/server/maskingtool-server/maskingtool-server.exe",
+      "args": []
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"]
+  },
+  "tools": [
+    { "name": "mask_document", "description": "Start masking a local document (.md/.txt/.docx/.pdf): opens a local review window and returns a review_id immediately; no content is returned before the user approves" },
+    { "name": "get_review_status", "description": "Poll a review_id: waiting_for_user, completed, cancelled, or failed" },
+    { "name": "get_review_result", "description": "After the user approves, returns the masked text, vault_id, entity counts, and any manually added terms" },
+    { "name": "restore_text", "description": "Restore original names into masked text using a vault_id" },
+    { "name": "restore_document", "description": "Restore original names into a masked file and write it next to the original" }
+  ],
+  "keywords": ["privacy", "masking", "pii", "local"],
+  "license": "AGPL-3.0-only"
+}

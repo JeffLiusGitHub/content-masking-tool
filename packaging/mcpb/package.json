@@ -1,0 +1,9 @@
+{
+  "name": "content-masking-tool-packaging",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Locked MCPB packaging dependency for reproducible release builds",
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  }
+}
