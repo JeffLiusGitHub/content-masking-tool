@@ -45,9 +45,18 @@ for pkg in [
 # spacy validates model compatibility via importlib.metadata
 datas += copy_metadata("spacy") + copy_metadata("en_core_web_sm")
 
-# presidio loads recognizers dynamically and reads yaml conf from package data
-datas += collect_data_files("presidio_analyzer")
-datas += collect_data_files("presidio_anonymizer")
+# presidio loads recognizers dynamically and reads yaml conf from package data.
+# include_py_files=True materialises presidio's full source tree (not just data
+# files) inside the bundle. This is required on macOS/Linux: presidio resolves
+# its conf as Path(__file__).parent / "../conf" / "default_recognizers.yaml"
+# (recognizers_loader_utils.py), i.e. presidio_analyzer/recognizer_registry/
+# ../conf/... . POSIX resolves that ".." on the filesystem, so the
+# recognizer_registry directory must physically exist; without the .py files it
+# lives only in the PYZ archive and the directory is absent, raising
+# FileNotFoundError. Windows collapses ".." lexically, which is why the
+# Windows build worked without this.
+datas += collect_data_files("presidio_analyzer", include_py_files=True)
+datas += collect_data_files("presidio_anonymizer", include_py_files=True)
 hiddenimports += collect_submodules("presidio_analyzer")
 hiddenimports += collect_submodules("presidio_anonymizer")
 

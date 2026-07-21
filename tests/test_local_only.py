@@ -167,10 +167,12 @@ class TestStdioNeverLeaksOriginals:
                     captured += line
                     if target in line.replace(b" ", b""):
                         break
-                try:
-                    proc.stdin.close()
-                except OSError:
-                    pass
+                # communicate() closes stdin itself (signalling EOF, which
+                # shuts the stdio server down) and drains the rest of stdout.
+                # Do NOT pre-close proc.stdin here: on POSIX communicate()
+                # flushes stdin, and flushing an already-closed pipe raises
+                # ValueError (Windows' communicate() skips the flush, so this
+                # only surfaced on macOS/Linux).
                 rest_out, err = proc.communicate(timeout=120)
             finally:
                 watchdog.cancel()

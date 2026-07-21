@@ -56,14 +56,30 @@ because Windows will otherwise keep the old executable locked.
 On a macOS machine:
 
 ```bash
-./packaging/pyinstaller/build_macos.sh
+./packaging/pyinstaller/build_macos.sh              # every arch this host can build
+./packaging/pyinstaller/build_macos.sh arm64        # Apple Silicon only
+./packaging/pyinstaller/build_macos.sh x86_64       # Intel only
+./packaging/pyinstaller/build_macos.sh arm64 x86_64 # both, explicitly
 ```
 
-The script performs the same locked build and verification flow, then writes
-architecture-specific MCPB, ZIP, and SHA-256 files under `dist/`.
+The script performs the same locked build and verification flow per
+architecture, then writes architecture-specific MCPB, ZIP, and SHA-256 files
+under `dist/` (e.g. `content-masking-tool-macos-arm64.mcpb` and
+`content-masking-tool-macos-x86_64.mcpb`).
 
-PyInstaller cannot cross-compile: Windows and macOS artifacts must be produced
-on their matching operating systems.
+Each architecture is built with its own uv-managed standalone CPython, so no
+Homebrew `python-tk` is required — those interpreters bundle Tk. PyInstaller
+produces a binary for the architecture of the interpreter it runs under, so:
+
+- With no argument, an **Apple Silicon** host builds both `arm64` and `x86_64`
+  (the Intel interpreter runs under Rosetta 2); an **Intel** host builds
+  `x86_64` only.
+- Building `x86_64` on Apple Silicon requires Rosetta 2:
+  `softwareupdate --install-rosetta --agree-to-license`.
+- `arm64` cannot be built on an Intel host — run that build on Apple Silicon.
+
+PyInstaller cannot cross-compile between operating systems: Windows and macOS
+artifacts must each be produced on their matching OS.
 
 ## Distribution and future CI
 

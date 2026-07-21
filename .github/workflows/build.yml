@@ -56,8 +56,20 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: Build (macOS)
-    runs-on: macos-latest
+    name: Build (macOS ${{ matrix.arch }})
+    # Build each architecture natively on its own runner: macos-13 is Intel
+    # (x86_64), macos-14 is Apple Silicon (arm64). PyInstaller emits a binary
+    # for the architecture of the runner it executes on, so no Rosetta/
+    # emulation is involved.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            arch: x86_64
+          - runner: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,17 +84,17 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build macOS artifacts
-        run: bash packaging/pyinstaller/build_macos.sh
+      - name: Build macOS artifacts (${{ matrix.arch }})
+        run: bash packaging/pyinstaller/build_macos.sh ${{ matrix.arch }}
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-artifacts
+          name: macos-artifacts-${{ matrix.arch }}
           path: |
-            dist/content-masking-tool-macos-*.mcpb
-            dist/maskingtool-macos-*-standalone.zip
-            dist/SHA256SUMS-macos-*.txt
+            dist/content-masking-tool-macos-${{ matrix.arch }}.mcpb
+            dist/maskingtool-macos-${{ matrix.arch }}-standalone.zip
+            dist/SHA256SUMS-macos-${{ matrix.arch }}.txt
           if-no-files-found: error
 
   release:
