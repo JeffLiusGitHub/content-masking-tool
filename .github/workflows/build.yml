@@ -1,0 +1,107 @@
+name: build
+
+# Builds the frozen MCP server, Claude Desktop extension (.mcpb), and the
+# standalone desktop ZIP for Windows and macOS by driving the existing
+# packaging scripts. On a v* tag it publishes a GitHub Release with all
+# artifacts and checksums attached.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # build_windows.ps1: uv sync --locked -> npm ci -> metadata check ->
+      # pytest -> PyInstaller onedir -> frozen smoke test -> mcpb pack ->
+      # standalone ZIP -> SHA256SUMS. uv reads .python-version (3.11).
+      - name: Build Windows artifacts
+        shell: pwsh
+        run: packaging/pyinstaller/build_windows.ps1
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            dist/content-masking-tool-win.mcpb
+            dist/maskingtool-windows-standalone.zip
+            dist/SHA256SUMS-windows.txt
+          if-no-files-found: error
+
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build macOS artifacts
+        run: bash packaging/pyinstaller/build_macos.sh
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
+            dist/content-masking-tool-macos-*.mcpb
+            dist/maskingtool-macos-*-standalone.zip
+            dist/SHA256SUMS-macos-*.txt
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            $(find artifacts -type f | sort)
