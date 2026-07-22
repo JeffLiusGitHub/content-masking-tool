@@ -21,14 +21,14 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import urllib.parse
-from pathlib import Path
 
 import pytest
 
 from maskingtool.engine import MaskingEngine
 from maskingtool.operators import restore_text
-from maskingtool.pipeline import mask_file, restore_file
+from maskingtool.pipeline import mask_file
 from maskingtool.vault import Vault
 
 # names that will never occur by accident in logs/paths/library output
@@ -140,11 +140,46 @@ class TestStdioNeverLeaksOriginals:
         ]
 
         def run_session(call):
+            # Feed the handshake + one tool call, then read stdout until THIS
+            # call's response arrives before closing stdin. Closing stdin
+            # signals EOF, which shuts the stdio server down; doing that before
+            # the tool response is flushed races the response away (a flake that
+            # only surfaced on slow/loaded CI). Reading the response first — the
+            # way a real MCP client keeps the connection open — removes the race.
             payload = "".join(json.dumps(r) + "\n" for r in handshake + [call])
-            return subprocess.run(
+            proc = subprocess.Popen(
                 [sys.executable, "-m", "maskingtool.mcp_server.server"],
-                input=payload.encode("utf-8"), capture_output=True,
-                env=env, timeout=120,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, env=env,
+            )
+            watchdog = threading.Timer(120, proc.kill)
+            watchdog.start()
+            try:
+                proc.stdin.write(payload.encode("utf-8"))
+                proc.stdin.flush()
+                target = b'"id":%d' % call["id"]
+                captured = b""
+                while True:
+                    line = proc.stdout.readline()
+                    if not line:  # server exited (or was killed by watchdog)
+                        break
+                    captured += line
+                    if target in line.replace(b" ", b""):
+                        break
+                # communicate() closes stdin itself (signalling EOF, which
+                # shuts the stdio server down) and drains the rest of stdout.
+                # Do NOT pre-close proc.stdin here: on POSIX communicate()
+                # flushes stdin, and flushing an already-closed pipe raises
+                # ValueError (Windows' communicate() skips the flush, so this
+                # only surfaced on macOS/Linux).
+                rest_out, err = proc.communicate(timeout=120)
+            finally:
+                watchdog.cancel()
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.communicate()
+            return subprocess.CompletedProcess(
+                proc.args, proc.returncode, captured + rest_out, err
             )
 
         # session 1: mandatory review starts; only a handle crosses stdio
@@ -220,7 +255,6 @@ class TestStdioNeverLeaksOriginals:
         doc.write_text(DOC, encoding="utf-8")
 
         import maskingtool.config as config
-        import importlib
 
         old = os.environ.get(config.DATA_DIR_ENV)
         old_spawn = os.environ.get("MASKINGTOOL_NO_GUI_SPAWN")
