@@ -1,0 +1,38 @@
+name: checks
+
+# Fast quality gate: lint (blocking) and type-check (informational for now).
+# The heavier build/test matrix lives in build.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-types:
+    name: Lint & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Ruff lint (blocking)
+        run: uv run ruff check src tests
+
+      - name: Mypy type check (informational)
+        continue-on-error: true
+        run: uv run mypy

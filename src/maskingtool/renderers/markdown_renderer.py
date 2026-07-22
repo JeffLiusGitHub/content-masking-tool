@@ -10,7 +10,7 @@ def render_masked_markdown(
 ) -> str:
     replacements = [
         (span.source_ref[0], span.source_ref[1], new_text)
-        for span, new_text in zip(spanned.spans, new_texts)
+        for span, new_text in zip(spanned.spans, new_texts, strict=False)
         if new_text != span.text
     ]
     return apply_replacements(source, replacements)

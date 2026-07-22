@@ -22,3 +22,23 @@
 *.ico  binary
 *.mcpb binary
 *.zip  binary
+
+# Keep GitHub's auto-generated "Source code" archives (git archive) lean:
+# ship only what's needed to build and run + license and user docs. These
+# rules affect the downloadable source tarball/zip ONLY — the repository
+# itself is unchanged. Kept: src/, packaging/, pyproject.toml, uv.lock,
+# LICENSE, README.md, USAGE.md, PRIVACY_DESIGN.md, THIRD_PARTY_NOTICES.md.
+/tests             export-ignore
+/demo              export-ignore
+/docs              export-ignore
+/.github           export-ignore
+/.claude           export-ignore
+/AGENTS.md         export-ignore
+/CLAUDE.md         export-ignore
+/PROGRESS.md       export-ignore
+/RELEASING.md      export-ignore
+/TESTING_GUIDE.md  export-ignore
+/TESTPLAN.md       export-ignore
+/CAPTURE_RUNBOOK.md export-ignore
+/AUDIT_RUNBOOK.md  export-ignore
+/AUDIT_GUIDE.md    export-ignore

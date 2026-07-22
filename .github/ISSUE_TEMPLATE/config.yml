@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue or real-name leak
+    url: https://github.com/JeffLiusGitHub/content-masking-tool/security/advisories/new
+    about: Report privately. Never open a public issue for a leak or vulnerability.
+  - name: Feature request / question
+    url: https://github.com/JeffLiusGitHub/content-masking-tool/discussions
+    about: Propose an idea or ask a question (if Discussions is enabled).

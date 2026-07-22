@@ -88,7 +88,7 @@ def parse_docx(path: Path) -> DocxParse:
 
 
 def write_masked_docx(parse: DocxParse, new_texts: list[str], output: Path) -> None:
-    for span, new_text in zip(parse.spanned.spans, new_texts):
+    for span, new_text in zip(parse.spanned.spans, new_texts, strict=False):
         if span.source_ref is not None and new_text != span.text:
             span.source_ref.text = new_text
     parse.document.save(str(output))
