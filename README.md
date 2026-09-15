@@ -14,8 +14,9 @@ Local-first, reversible masking of company and people names in documents (MD/TXT
 
 **Status:** v1.2.0 has a Windows x64 build and native macOS arm64/x86_64
 build paths. Its release binaries are unsigned, and no MSI or PKG has shipped.
-The next-release installer pipeline described below is approved but not
-implemented or installer-tested. Details in [PROGRESS.md](PROGRESS.md).
+Unsigned-test-only MSI/PKG projects now exist for the next-release pipeline;
+clean CI lifecycle evidence and all production signing/notarization work are
+still pending. Details in [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -92,12 +93,13 @@ reviews, and audit data. MCPB files will remain separate required assets for
 Claude Desktop; MSI/PKG will not replace or silently install the extension.
 Manually extracted legacy ZIP copies will not be searched for or deleted.
 
-This MSI/PKG pipeline is **approved but not yet implemented or verified**. No
-next version number or production signing identity has been assigned. See
+Unsigned-test-only MSI/PKG build projects and lifecycle checks are now
+implemented, but clean CI evidence is pending and they are **not formal release
+packages**. No next version number or production signing identity has been assigned. See
 [RELEASING.md](RELEASING.md) for the normative contract and
 [TESTPLAN.md](TESTPLAN.md) for the planned acceptance matrix.
 
-> **v1.2.0 binaries come from its tagged release.** The current [`build`](../../actions/workflows/build.yml) workflow attaches the v1.2.0-style `.mcpb`, standalone ZIP, and checksums to GitHub Releases. Until the future pipeline is implemented, local/CI builds retain that layout. Do not treat Actions artifacts as signed production installers.
+> **v1.2.0 binaries come from its tagged release.** The current [`build`](../../actions/workflows/build.yml) workflow uploads test artifacts only and never creates or changes a GitHub Release. Its MSI/PKG filenames contain `unsigned-test-only`; do not treat Actions artifacts as signed production installers.
 
 **v1.2.0 end users (Windows, no Python needed):**
 
@@ -223,11 +225,12 @@ When collaborating, **share only the masked file**; send the matching Vault JSON
 
 ## Roadmap / Support
 
-- Managed native installers: **planned, not implemented** — signed Windows x64
-  per-machine MSI; signed/notarized/stapled macOS arm64 and x86_64 PKGs; atomic
-  release publication; MCPBs retained. Current v1.2.0 ZIP/MCPB evidence does
-  not validate these future packages. Stage 2 candidates remain Chinese NER
-  and alias matching.
+- Managed native installers: **unsigned test implementation exists; formal
+  release work remains** — signed Windows x64 per-machine MSI;
+  signed/notarized/stapled macOS arm64 and x86_64 PKGs; atomic release
+  publication; MCPBs retained. Current v1.2.0 ZIP/MCPB and unsigned-test-only
+  evidence do not validate future production packages. Stage 2 candidates
+  remain Chinese NER and alias matching.
 - Docs index: architecture [CLAUDE.md](CLAUDE.md) · release contract [RELEASING.md](RELEASING.md) · progress [PROGRESS.md](PROGRESS.md) · team boundary guide [USAGE.md](USAGE.md) · privacy design [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · audit [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · test plan [TESTPLAN.md](TESTPLAN.md) · third-party notices [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - Questions/issues: contact the maintainer, Jeff (internal channels).
 
@@ -315,11 +318,12 @@ PKG。这些原生安装包将提供稳定的机器级路径、MDM 静默安装�
 MCPB 仍是 Claude Desktop 必需的独立 Release 资产；MSI/PKG 不替代、也不静默安装
 该扩展。工具不会扫描或删除用户手工解压在任意位置的旧 ZIP 副本。
 
-上述 MSI/PKG pipeline **已经批准，但尚未实现或验证**；下一版本号和正式签名身份
-也尚未确定。规范性契约见 [RELEASING.md](RELEASING.md)，计划中的验收矩阵见
+目前已经实现明确标记为 `unsigned-test-only` 的 MSI/PKG 构建项目和生命周期检查，
+但干净 CI 的证据仍待取得，而且这些包**不是正式 Release 安装包**。下一版本号和
+正式签名身份也尚未确定。规范性契约见 [RELEASING.md](RELEASING.md)，验收矩阵见
 [TESTPLAN.md](TESTPLAN.md)。
 
-> **v1.2.0 二进制来自对应的标签 Release。** 当前 [`build`](../../actions/workflows/build.yml) workflow 仍生成 v1.2.0 形态的 `.mcpb`、standalone ZIP 和校验值；未来 pipeline 实现前，本地/CI 构建继续保留该布局。不要把 Actions artifact 当成已签名的正式安装包。
+> **v1.2.0 二进制来自对应的标签 Release。** 当前 [`build`](../../actions/workflows/build.yml) workflow 只上传测试 artifact，绝不会创建或修改 GitHub Release。MSI/PKG 文件名明确包含 `unsigned-test-only`；不要把 Actions artifact 当成已签名的正式安装包。
 
 **v1.2.0 普通使用者(Windows,无需装 Python):**
 
@@ -437,10 +441,11 @@ uv sync --locked --extra dev
 
 ## 路线图 / 支持
 
-- 受管原生安装包：**已规划、未实现**——签名的 Windows x64 per-machine MSI；
-  签名、公证、staple 的 macOS arm64/x86_64 PKG；原子化 Release 发布；继续保留
-  MCPB。当前 v1.2.0 ZIP/MCPB 的证据不能证明未来安装包已通过验证。Stage 2 备选
-  仍为中文 NER 和别名匹配。
+- 受管原生安装包：**未签名测试实现已存在，正式发布工作仍待完成**——签名的
+  Windows x64 per-machine MSI；签名、公证、staple 的 macOS arm64/x86_64 PKG；
+  原子化 Release 发布；继续保留 MCPB。当前 v1.2.0 ZIP/MCPB 和
+  `unsigned-test-only` 证据都不能证明未来正式包已通过验证。Stage 2 备选仍为中文
+  NER 和别名匹配。
 - 文档索引:架构 [CLAUDE.md](CLAUDE.md) · 发布契约 [RELEASING.md](RELEASING.md) · 进度 [PROGRESS.md](PROGRESS.md) · 团队边界指南 [USAGE.md](USAGE.md) · 隐私设计 [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · 审计 [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · 测试计划 [TESTPLAN.md](TESTPLAN.md) · 第三方声明 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - 问题反馈:联系维护者 Jeff(内部渠道)。
 

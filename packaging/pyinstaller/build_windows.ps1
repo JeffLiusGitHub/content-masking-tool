@@ -62,6 +62,14 @@ if (-not (Test-Path -LiteralPath $exe)) { throw "frozen exe not found: $exe" }
 Write-Host "== 6/9 Smoke test frozen MCP stdio server ==" -ForegroundColor Cyan
 & $python (Join-Path $PSScriptRoot "smoke_frozen.py") $exe
 if ($LASTEXITCODE -ne 0) { throw "frozen exe smoke test failed" }
+$projectText = Get-Content -LiteralPath (Join-Path $root "pyproject.toml") -Raw
+$versionMatch = [regex]::Match($projectText, '(?m)^version\s*=\s*"([^"]+)"')
+if (-not $versionMatch.Success) { throw "Unable to read project version" }
+$versionOutput = (& $exe --version | Out-String).Trim()
+$expectedVersion = "maskingtool-server $($versionMatch.Groups[1].Value)"
+if ($versionOutput -cne $expectedVersion) {
+    throw "Frozen version probe mismatch: expected '$expectedVersion', got '$versionOutput'"
+}
 
 Write-Host "== 7/9 Assemble production MCPB payload ==" -ForegroundColor Cyan
 $stage = Join-Path $distRoot "mcpb-win"

@@ -1,23 +1,18 @@
 name: build
 
-# Builds the frozen MCP server, Claude Desktop extension (.mcpb), and the
-# standalone desktop ZIP for Windows and macOS by driving the existing
-# packaging scripts. On a v* tag, each platform job attaches its own artifacts
-# to the release for that tag (creating it on first upload). This is
-# deliberately decoupled: the release publishes as soon as any platform is
-# ready, and a slow/queued runner (notably the scarce macOS Intel runner) only
-# delays its own assets — it never blocks the others.
-
+# This workflow produces unsigned, test-only native installers for CI
+# acceptance. It never creates or modifies a GitHub Release. Formal release
+# publication remains disabled until production identities, signing,
+# notarization, and the final release gate are implemented.
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [main, 'codex/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
@@ -25,7 +20,7 @@ concurrency:
 
 jobs:
   build-windows:
-    name: Build (Windows)
+    name: Build and test (Windows x64)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -41,14 +36,32 @@ jobs:
         with:
           node-version: '20'
 
-      # build_windows.ps1: uv sync --locked -> npm ci -> metadata check ->
-      # pytest -> PyInstaller onedir -> frozen smoke test -> mcpb pack ->
-      # standalone ZIP -> SHA256SUMS. uv reads .python-version (3.11).
-      - name: Build Windows artifacts
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build frozen server and legacy test artifacts
         shell: pwsh
         run: packaging/pyinstaller/build_windows.ps1
 
-      - name: Upload Windows artifacts
+      - name: Build unsigned test MSI
+        shell: pwsh
+        run: packaging/msi/build_windows_msi.ps1 -TestOnly
+
+      - name: Test MSI install, reinstall, and uninstall
+        shell: pwsh
+        run: |
+          $msi = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-unsigned-test-only.msi)
+          $metadata = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-unsigned-test-only.json)
+          if ($msi.Count -ne 1 -or $metadata.Count -ne 1) {
+            throw "Expected exactly one MSI and metadata file"
+          }
+          packaging/msi/test_windows_msi.ps1 `
+            -MsiPath $msi[0].FullName `
+            -MetadataPath $metadata[0].FullName
+
+      - name: Upload Windows test artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
@@ -56,33 +69,17 @@ jobs:
             dist/content-masking-tool-win.mcpb
             dist/maskingtool-windows-standalone.zip
             dist/SHA256SUMS-windows.txt
+            dist/content-masking-tool-windows-x64-*-unsigned-test-only.msi
+            dist/content-masking-tool-windows-x64-*-unsigned-test-only.json
           if-no-files-found: error
 
-      - name: Attach to release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Create the release on first upload; ignore if another job already did.
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes || true
-          gh release upload "$GITHUB_REF_NAME" \
-            dist/content-masking-tool-win.mcpb \
-            dist/maskingtool-windows-standalone.zip \
-            dist/SHA256SUMS-windows.txt \
-            --clobber
-
   build-macos:
-    name: Build (macOS ${{ matrix.arch }})
-    # Build each architecture natively on its own runner: macos-13 is Intel
-    # (x86_64), macos-14 is Apple Silicon (arm64). PyInstaller emits a binary
-    # for the architecture of the runner it executes on, so no Rosetta/
-    # emulation is involved.
+    name: Build and test (macOS ${{ matrix.arch }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-15-intel
             arch: x86_64
           - runner: macos-14
             arch: arm64
@@ -101,10 +98,24 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build macOS artifacts (${{ matrix.arch }})
+      - name: Build frozen server and legacy test artifacts
         run: bash packaging/pyinstaller/build_macos.sh ${{ matrix.arch }}
 
-      - name: Upload macOS artifacts
+      - name: Build unsigned test PKG
+        run: bash packaging/pkg/build_macos_pkg.sh ${{ matrix.arch }} --test-only
+
+      - name: Test PKG install, reinstall, and uninstall
+        run: |
+          shopt -s nullglob
+          packages=(dist/content-masking-tool-macos-${{ matrix.arch }}-*-unsigned-test-only.pkg)
+          metadata=(dist/content-masking-tool-macos-${{ matrix.arch }}-*-unsigned-test-only.json)
+          if [[ ${#packages[@]} -ne 1 || ${#metadata[@]} -ne 1 ]]; then
+            echo "ERROR: expected exactly one PKG and metadata file" >&2
+            exit 1
+          fi
+          bash packaging/pkg/test_macos_pkg.sh "${packages[0]}" "${metadata[0]}"
+
+      - name: Upload macOS test artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts-${{ matrix.arch }}
@@ -112,17 +123,6 @@ jobs:
             dist/content-masking-tool-macos-${{ matrix.arch }}.mcpb
             dist/maskingtool-macos-${{ matrix.arch }}-standalone.zip
             dist/SHA256SUMS-macos-${{ matrix.arch }}.txt
+            dist/content-masking-tool-macos-${{ matrix.arch }}-*-unsigned-test-only.pkg
+            dist/content-masking-tool-macos-${{ matrix.arch }}-*-unsigned-test-only.json
           if-no-files-found: error
-
-      - name: Attach to release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Create the release on first upload; ignore if another job already did.
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes || true
-          gh release upload "$GITHUB_REF_NAME" \
-            "dist/content-masking-tool-macos-${{ matrix.arch }}.mcpb" \
-            "dist/maskingtool-macos-${{ matrix.arch }}-standalone.zip" \
-            "dist/SHA256SUMS-macos-${{ matrix.arch }}.txt" \
-            --clobber

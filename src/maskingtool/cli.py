@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+from maskingtool import __version__
 from maskingtool import config
 from maskingtool.denylist.loader import load_deny_lists, read_terms_csv
 from maskingtool.engine import MaskingEngine
@@ -15,7 +16,12 @@ from maskingtool.vault import Vault, VaultNotFoundError
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="maskingtool")
+    p = argparse.ArgumentParser(prog="maskingtool-server")
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"maskingtool-server {__version__}",
+    )
     sub = p.add_subparsers(dest="command", required=True)
 
     m = sub.add_parser("mask", help="mask a document, print vault_id")

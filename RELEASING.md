@@ -1,13 +1,14 @@
 # Release packaging and distribution
 
-> **Status as of 2026-09-14**
+> **Status as of 2026-09-15**
 >
 > - **Released baseline:** v1.2.0 remains the existing unsigned PyInstaller
 >   `onedir` standalone ZIP plus platform MCPB assets. It is historical and
 >   must not be modified, retagged, rebuilt in place, or republished.
-> - **Next release:** the MSI/PKG requirements below are approved for
->   `[Unreleased]`, but they are **not implemented or verified**. This document
->   does not assign a version after v1.2.0.
+> - **Next release:** unsigned-test-only MSI/PKG build projects and lifecycle
+>   harnesses now exist for `[Unreleased]`; clean CI evidence is pending. The
+>   production signing/notarization and atomic publication path is not yet
+>   implemented. This document does not assign a version after v1.2.0.
 > - Updating this contract does not mean an MSI, PKG, production signature,
 >   notarization, staple, clean-machine installation, upgrade, uninstall, or
 >   MDM deployment has passed.
@@ -350,11 +351,21 @@ The ARP Publisher is separate installer metadata and MUST be validated against
 its own approved value rather than inferred from the signer. A self-signed
 certificate MUST NOT be represented as a formal release identity.
 
-When the MSI project exists, this document or its directly linked English
-operator instructions MUST provide copy-pasteable local unsigned-test build
-prerequisites, exact commands, output names, and verification steps. Until that
-implementation exists, do not invent commands or imply that a local MSI can be
-built.
+The unsigned test build requires Windows x64, `uv`, Node.js, the .NET 9 SDK,
+and an elevated shell for the lifecycle test. From the repository root:
+
+```powershell
+packaging/pyinstaller/build_windows.ps1
+packaging/msi/build_windows_msi.ps1 -TestOnly
+packaging/msi/test_windows_msi.ps1 `
+  -MsiPath dist/content-masking-tool-windows-x64-1.2.0-unsigned-test-only.msi `
+  -MetadataPath dist/content-masking-tool-windows-x64-1.2.0-unsigned-test-only.json
+```
+
+Replace `1.2.0` with the synchronized project version after it is formally
+assigned. The second command refuses to run without `-TestOnly`; its temporary
+Manufacturer and UpgradeCode are deliberately not production identities. A
+passing WiX compile or lifecycle test is not signing evidence.
 
 ## macOS PKG contract
 
@@ -454,11 +465,27 @@ PR/local builds MAY create a clearly labelled unsigned test-only PKG for
 payload and receipt-layout checks. Formal automation MUST NOT fall back to
 unsigned output when credentials are unavailable.
 
-When the PKG project exists, this document or its directly linked English
-operator instructions MUST provide copy-pasteable per-architecture local
-unsigned-test build prerequisites, exact commands, output names, and
-verification steps. Until that implementation exists, do not invent commands
-or imply that a local PKG can be built.
+The unsigned test build requires a native macOS runner with `uv`, Node.js, and
+the standard Apple packaging tools. Run each architecture on its matching
+runner from the repository root:
+
+```bash
+bash packaging/pyinstaller/build_macos.sh arm64
+bash packaging/pkg/build_macos_pkg.sh arm64 --test-only
+bash packaging/pkg/test_macos_pkg.sh \
+  dist/content-masking-tool-macos-arm64-1.2.0-unsigned-test-only.pkg \
+  dist/content-masking-tool-macos-arm64-1.2.0-unsigned-test-only.json
+
+bash packaging/pyinstaller/build_macos.sh x86_64
+bash packaging/pkg/build_macos_pkg.sh x86_64 --test-only
+bash packaging/pkg/test_macos_pkg.sh \
+  dist/content-masking-tool-macos-x86_64-1.2.0-unsigned-test-only.pkg \
+  dist/content-masking-tool-macos-x86_64-1.2.0-unsigned-test-only.json
+```
+
+Replace `1.2.0` after the next version is assigned. The build script refuses
+to run without `--test-only`; its temporary package identifiers are not
+production identifiers, and these packages are not signed or notarized.
 
 ### Managed uninstall
 

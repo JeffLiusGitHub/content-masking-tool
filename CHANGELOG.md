@@ -7,6 +7,11 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Unsigned-test-only native installer projects: a WiX 4 x64/per-machine MSI
+  and separate macOS arm64/x86_64 PKGs, with CI lifecycle checks for layout,
+  version, repeat installation, managed uninstall, and user-data retention.
+- A side-effect-free `maskingtool-server --version` probe and strict canonical
+  three-part installer version validation.
 - Open-source project health files: `SECURITY.md` (private vulnerability / leak
   reporting), `CONTRIBUTING.md`, this changelog, and GitHub issue/PR templates.
 - CI: CodeQL static analysis, Dependabot updates (uv / GitHub Actions / npm),
@@ -15,6 +20,11 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - README status badges.
 
 ### Fixed
+- The runtime `__version__` now agrees with the v1.2.0 project and MCPB
+  metadata instead of reporting 1.1.0.
+- The macOS Intel CI target now uses the supported `macos-15-intel` runner.
+- The build workflow no longer creates or mutates GitHub Releases from platform
+  jobs; it has read-only repository permissions and emits only CI artifacts.
 - Removed unused imports and made `zip()` calls explicit about `strict=`
   (ruff `F401`/`B905`).
 

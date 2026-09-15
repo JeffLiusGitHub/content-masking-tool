@@ -213,13 +213,13 @@ identifiers; their governing release behavior is defined in
 
 | ID | Requirement | Planned acceptance | Status |
 |---|---|---|---|
-| VER-001 | version normalization | Git tag, application version, three-part MSI ProductVersion, MSI display version, PKG version, MCPB versions, and manifest version agree; prerelease/build metadata, fourth/non-numeric components, leading zeroes, major/minor above 255, and patch above 65535 are rejected without truncation | Planned — not run |
-| VER-002 | machine-readable version | both the installed Windows exe and installed macOS launcher print exactly `maskingtool-server MAJOR.MINOR.PATCH`, exit zero, write no other stdout or user data, and do not start GUI or MCP mode | Planned — not run |
+| VER-001 | version normalization | Git tag, application version, three-part MSI ProductVersion, MSI display version, PKG version, MCPB versions, and manifest version agree; prerelease/build metadata, fourth/non-numeric components, leading zeroes, major/minor above 255, and patch above 65535 are rejected without truncation | Partial — source/runtime/MCPB synchronization and native-version rejection tests pass; tag, installed metadata, and final manifest remain pending |
+| VER-002 | machine-readable version | both the installed Windows exe and installed macOS launcher print exactly `maskingtool-server MAJOR.MINOR.PATCH`, exit zero, write no other stdout or user data, and do not start GUI or MCP mode | Partial — source and fresh Windows frozen probes pass; installed Windows and both macOS architectures await clean CI evidence |
 | META-001 | installer metadata | MSI and PKG metadata expose the expected stable identifiers, version, architecture, and approved publisher/team values | Planned — not run |
 | META-002 | release manifest | schema, required fields, asset inventory, size, SHA-256, identifiers, commands, tag, and commit match the built artifacts | Planned — not run |
 | META-003 | release notes | extraction selects the matching `CHANGELOG.md` version section and fails when it is missing, empty, or ambiguous | Planned — not run |
-| META-004 | implementation language | new installer project names, workflow/job/step identifiers, code comments, and implementation/operator documentation are in English | Planned — not run |
-| META-005 | local test-build instructions | after installer projects exist, English instructions give reproducible prerequisites, copy-pasteable exact unsigned-test MSI/PKG commands, architecture, output names, and verification steps; before implementation, no fabricated command is published | Planned — not run |
+| META-004 | implementation language | new installer project names, workflow/job/step identifiers, code comments, and implementation/operator documentation are in English | Implemented — review pending |
+| META-005 | local test-build instructions | after installer projects exist, English instructions give reproducible prerequisites, copy-pasteable exact unsigned-test MSI/PKG commands, architecture, output names, and verification steps; before implementation, no fabricated command is published | Implemented — Windows commands locally exercised; macOS commands await native CI |
 | SEC-001 | credential isolation | fork and ordinary PR jobs cannot access signing credentials; logs, caches, artifacts, and test snapshots contain no secret material | Planned — not run |
 | SEC-002 | protection integrity | no build or test path bypasses production signing, notarization, stapling, Gatekeeper, downgrade protection, or fail-closed publication to obtain a passing result | Planned — not run |
 
@@ -230,7 +230,7 @@ MDM-equivalent SYSTEM context where required.
 
 | ID | Planned verification | Acceptance | Status |
 |---|---|---|---|
-| WIN-001 | package layout | a real WiX 4 per-machine MSI installs the complete PyInstaller onedir tree, including `_internal`, beneath the stable Program Files product directory | Planned — not run |
+| WIN-001 | package layout | a real WiX 4 per-machine MSI installs the complete PyInstaller onedir tree, including `_internal`, beneath the stable Program Files product directory | Partial — real MSI compiled from complete onedir; elevated installation awaits CI |
 | WIN-002 | MSI identity | UpgradeCode remains permanent; ProductCode differs between formal versions but is deterministic across two builds of the same immutable tag; ProductVersion, DisplayVersion, DisplayName, MSI Manufacturer, ARP Publisher, architecture, and registration match their separate release-manifest fields | Planned — not run |
 | WIN-003 | silent install | `msiexec /i package.msi /qn /norestart /log install.log` succeeds as SYSTEM using standard MSI exit codes; any possible 3010 handling is documented, no restart is required where avoidable, and version/frozen smoke probes pass afterward | Planned — not run |
 | WIN-004 | repeat and upgrade | same-version deployment is idempotent; a prior MSI performs one in-place Major Upgrade; old and new copies do not coexist | Planned — not run |
@@ -238,7 +238,7 @@ MDM-equivalent SYSTEM context where required.
 | WIN-006 | managed uninstall | `msiexec /x {ProductCode} /qn /norestart /log uninstall.log` removes only installer-owned program files and registration | Planned — not run |
 | WIN-007 | data retention and context | install, repair, upgrade, and ordinary uninstall as SYSTEM preserve user-profile sentinels for `%APPDATA%\ContentMaskingTool\` Vaults, deny lists, settings, history, reviews, and audit data; no application state is redirected into SYSTEM or another user's profile | Planned — not run |
 | WIN-008 | signing and hash | applicable EXE/DLL/PYD files are Authenticode-signed before MSI creation; the MSI is then signed with an RFC 3161 timestamp; the Authenticode subject, independently approved ARP Publisher, signatures, version, and SHA-256 verify against their separate manifest fields | Planned — not run |
-| WIN-009 | unsigned policy | PR builds may emit clearly labelled unsigned test-only MSI artifacts; a formal tag build fails when production signing is unavailable or invalid | Planned — not run |
+| WIN-009 | unsigned policy | PR builds may emit clearly labelled unsigned test-only MSI artifacts; a formal tag build fails when production signing is unavailable or invalid | Test path implemented — builder refuses non-test mode; formal signed workflow remains absent/fail-closed |
 | WIN-010 | MDM detection | Windows Installer registration by UpgradeCode/ProductCode, the expected installed three-part version, and the installed executable's exact `--version` result agree; detection does not invoke `Win32_Product` | Planned — not run |
 | WIN-011 | repair lifecycle | same-version silent repair remains x64/per-machine in SYSTEM context, returns a standard MSI result, restores only installer-owned program files, and preserves all per-user data sentinels | Planned — not run |
 
@@ -259,7 +259,7 @@ for that layout.
 | MAC-007 | data retention | install, upgrade, and managed uninstall preserve `~/Library/Application Support/ContentMaskingTool/` | Planned — not run |
 | MAC-008 | nested signing | applicable nested Mach-O files are signed from the inside out with Developer ID Application, hardened runtime where applicable, and a secure timestamp | Planned — not run |
 | MAC-009 | package trust | the final PKG is signed with Developer ID Installer, submitted with `notarytool`, stapled, and passes `codesign --verify --deep --strict --verbose`, `pkgutil --check-signature`, `spctl -a -vv -t install`, and `xcrun stapler validate` | Planned — not run |
-| MAC-010 | unsigned policy | PR builds may emit clearly labelled unsigned layout-test PKGs; a formal tag build fails on missing or failed signing, notarization, stapling, or verification | Planned — not run |
+| MAC-010 | unsigned policy | PR builds may emit clearly labelled unsigned layout-test PKGs; a formal tag build fails on missing or failed signing, notarization, stapling, or verification | Test path implemented — builder refuses non-test mode; native CI and formal signed workflow remain pending |
 | MAC-011 | uninstall failure safety | empty/root/home/wildcard/parent/unexpected targets are rejected; simulated launcher or payload deletion failure leaves the receipt and retryable helper intact; already-absent fully removed state succeeds; partial state fails | Planned — not run |
 
 ### 9.4 Unified release workflow
