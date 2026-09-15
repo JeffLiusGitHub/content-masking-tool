@@ -18,6 +18,19 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Removed unused imports and made `zip()` calls explicit about `strict=`
   (ruff `F401`/`B905`).
 
+### Documentation
+
+- Documented the requirements approved on 2026-09-14 for the next-release
+  managed installation pipeline: a signed per-machine Windows x64 MSI and
+  signed, notarized, and stapled macOS arm64/x86_64 PKGs, while retaining the
+  Windows and per-architecture macOS MCPB extension artifacts.
+- Documented the planned MDM contracts for silent installation, version
+  detection, upgrade, downgrade handling, checksum/signature verification,
+  managed uninstall, user-data retention, and atomic release publication.
+- Added planned installer and release acceptance matrices. These checks have
+  not been run, and no MSI, PKG, signature, notarization, tag, or GitHub Release
+  is represented as completed by this documentation update.
+
 ## [1.2.0] - 2026-07-21
 
 ### Added

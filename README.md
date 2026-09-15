@@ -12,7 +12,10 @@ Local-first, reversible masking of company and people names in documents (MD/TXT
 
 本地优先、可逆的文档脱敏工具:在文档内容进入 AI 之前,把公司名和人名替换成令牌,事后精确还原。[跳转到中文完整说明 →](#中文说明)
 
-**Status:** v1.2.0, Windows and macOS builds working (148 source tests passing). macOS ships native binaries for both Apple Silicon (arm64) and Intel (x86_64). Details in [PROGRESS.md](PROGRESS.md).
+**Status:** v1.2.0 has a Windows x64 build and native macOS arm64/x86_64
+build paths. Its release binaries are unsigned, and no MSI or PKG has shipped.
+The next-release installer pipeline described below is approved but not
+implemented or installer-tested. Details in [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -67,24 +70,60 @@ Flow: Claude calls `mask_document` → a review window opens on your machine →
 
 ```powershell
 maskingtool-server.exe mask report.md              # mask (the human at the keyboard is the reviewer)
-maskingtool-server.exe restore-doc report.masked.md --vault-id <id>
+maskingtool-server.exe restore report.masked.md --vault-id <id>
 ```
 
 One executable, three modes, selected automatically: arguments = CLI; piped stdin = MCP server; plain double-click = GUI.
 
 ## Installation
 
-**End users (Windows, no Python needed):**
+### Packaging status and next-release plan
 
-1. Download `maskingtool-windows-standalone.zip` from this repository's GitHub Releases and **extract it completely** (the exe depends on the `_internal` folder next to it — don't copy the exe alone);
-2. For use inside Claude Desktop: run `packaging\installer\install.bat` (one-click) or double-click `content-masking-tool-win.mcpb`;
-3. After first run, put your team's real name lists into `people.csv` / `companies.csv` under `%APPDATA%\ContentMaskingTool\denylists\` (hot-reloaded — saving takes effect immediately).
+The instructions below describe the existing **v1.2.0** assets. That release is
+unchanged: its standalone builds are unsigned PyInstaller `onedir` ZIPs, and
+its Claude Desktop builds are separate MCPB extension files.
 
-The build is currently unsigned: IT should whitelist the exe hash in EDR.
+For the first formal release after v1.2.0, the approved target is a signed x64
+per-machine Windows MSI and separate signed, notarized, stapled macOS PKGs for
+arm64 and x86_64. Those native installers will provide stable machine-level
+paths, silent MDM installation, version detection, upgrade, and managed
+uninstall while preserving each user's Vaults, deny lists, settings, history,
+reviews, and audit data. MCPB files will remain separate required assets for
+Claude Desktop; MSI/PKG will not replace or silently install the extension.
+Manually extracted legacy ZIP copies will not be searched for or deleted.
 
-**End users (macOS, no Python needed):**
+This MSI/PKG pipeline is **approved but not yet implemented or verified**. No
+next version number or production signing identity has been assigned. See
+[RELEASING.md](RELEASING.md) for the normative contract and
+[TESTPLAN.md](TESTPLAN.md) for the planned acceptance matrix.
 
-macOS ships **native builds for both architectures** — pick the one for your Mac:
+> **v1.2.0 binaries come from its tagged release.** The current [`build`](../../actions/workflows/build.yml) workflow attaches the v1.2.0-style `.mcpb`, standalone ZIP, and checksums to GitHub Releases. Until the future pipeline is implemented, local/CI builds retain that layout. Do not treat Actions artifacts as signed production installers.
+
+**v1.2.0 end users (Windows, no Python needed):**
+
+The v1.2.0 release publishes two Windows assets:
+
+- `content-masking-tool-win.mcpb` — the Claude Desktop extension (mask/restore *inside* Claude);
+- `maskingtool-windows-standalone.zip` — the same binary for the CLI / no-Desktop path.
+
+*Inside Claude Desktop (recommended):*
+
+1. Download `content-masking-tool-win.mcpb` from Releases;
+2. **Double-click** it, or in Claude Desktop go to **Settings → Extensions → Advanced settings → Install Extension…** and select it;
+3. The "not verified by Anthropic" prompt is expected for an internal tool — confirm, then **restart Claude Desktop**;
+4. After first run, put your team's real name lists into `people.csv` / `companies.csv` under `%APPDATA%\ContentMaskingTool\denylists\` (hot-reloaded — saving takes effect immediately).
+
+> **One-click alternative** (installs the Desktop extension *and* registers the Claude Code MCP in one run): from a **repo checkout or dev build**, run `packaging\installer\install.bat` with `content-masking-tool-win.mcpb` sitting next to it (or already built into `dist\`). Quit Claude Desktop first — the installer waits for it to close. This script ships in the repo, **not** in the release assets or the standalone ZIP.
+
+*CLI only (no Claude Desktop):* download `maskingtool-windows-standalone.zip`, **extract it completely** (the exe depends on the `_internal` folder next to it — don't copy the exe alone), then run `maskingtool-server\maskingtool-server.exe mask <file>` (see *Command line* above).
+
+The v1.2.0 build is unsigned: IT should whitelist the executable hash in EDR.
+This legacy measure is not permission to publish an unsigned formal MSI.
+
+**v1.2.0 end users (macOS, no Python needed):**
+
+The v1.2.0 build path supports **both native architectures**. Use the matching
+asset only when it is present on the release page:
 
 - Apple Silicon (M1/M2/M3/M4): `content-masking-tool-macos-arm64.mcpb`
 - Intel: `content-masking-tool-macos-x86_64.mcpb`
@@ -103,11 +142,12 @@ for you. Just point the installer at wherever you downloaded it:
 4. First launch: because the build is unsigned, macOS Gatekeeper may block it. Approve once via **System Settings → Privacy & Security** (scroll to the blocked-app notice → "Open Anyway");
 5. After first run, put your team's real name lists into `people.csv` / `companies.csv` under `~/Library/Application Support/ContentMaskingTool/denylists/` (hot-reloaded — saving takes effect immediately).
 
-**Alternative — wire it up by hand (fixed location):**
+**Legacy v1.2.0 alternative — wire it up by hand (fixed location):**
 
-If you prefer editing the config yourself, put the tool in a **stable location**
-so the path never breaks. Copy-paste (pick your architecture in the URL/zip
-name):
+This is a workaround for the historical unsigned ZIP only. It is not the
+planned PKG installation or Gatekeeper solution. If you must use v1.2.0 and
+prefer editing the config yourself, put the tool in a **stable location** so
+the path never breaks. Copy-paste (pick your architecture in the URL/zip name):
 
 ```bash
 # 1. Create the install folder and extract the standalone build into it
@@ -118,7 +158,8 @@ ditto -x -k maskingtool-macos-arm64-standalone.zip .
 # the binary is now at:
 #   ~/Applications/content-masking-tool/maskingtool-server/maskingtool-server
 
-# 2. Clear the Gatekeeper quarantine flag (unsigned build)
+# 2. Legacy v1.2.0 only: clear quarantine for this unsigned ZIP
+#    Future formal PKGs must use signing + notarization + stapling instead.
 xattr -dr com.apple.quarantine ~/Applications/content-masking-tool/maskingtool-server
 ```
 
@@ -141,7 +182,7 @@ Replace `YOUR_USERNAME` with your macOS account name (run `whoami` to check).
 The same `maskingtool-macos-<arch>-standalone.zip` also works without Claude for
 CLI masking/restore — keep the `_internal` folder next to the binary.
 
-**Developers:**
+**Developers (current v1.2.0 build path):**
 
 ```powershell
 uv sync --locked --extra dev
@@ -182,8 +223,12 @@ When collaborating, **share only the masked file**; send the matching Vault JSON
 
 ## Roadmap / Support
 
-- macOS packaging (M11): **done** — native arm64 + x86_64 builds, dual-arch CI. Next: code signing / notarization to drop the Gatekeeper prompt. Stage 2 candidates: Chinese NER, alias matching.
-- Docs index: architecture [CLAUDE.md](CLAUDE.md) · progress [PROGRESS.md](PROGRESS.md) · team boundary guide [USAGE.md](USAGE.md) · privacy design [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · audit [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · test plan [TESTPLAN.md](TESTPLAN.md) · third-party notices [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- Managed native installers: **planned, not implemented** — signed Windows x64
+  per-machine MSI; signed/notarized/stapled macOS arm64 and x86_64 PKGs; atomic
+  release publication; MCPBs retained. Current v1.2.0 ZIP/MCPB evidence does
+  not validate these future packages. Stage 2 candidates remain Chinese NER
+  and alias matching.
+- Docs index: architecture [CLAUDE.md](CLAUDE.md) · release contract [RELEASING.md](RELEASING.md) · progress [PROGRESS.md](PROGRESS.md) · team boundary guide [USAGE.md](USAGE.md) · privacy design [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · audit [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · test plan [TESTPLAN.md](TESTPLAN.md) · third-party notices [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - Questions/issues: contact the maintainer, Jeff (internal channels).
 
 *Open-source software licensed under [GNU AGPL-3.0](LICENSE).*
@@ -196,7 +241,9 @@ When collaborating, **share only the masked file**; send the matching Vault JSON
 
 本地优先、可逆的文档脱敏工具:在文档内容进入 AI(Claude)之前,把公司名和人名替换成 `⟦PERSON_001⟧` / `⟦ORG_001⟧` 这样的令牌;工作完成后再一键还原回真实姓名。全程本地运行,原文永远不离开你的电脑。同一个可执行文件同时提供 Windows 桌面应用、命令行和 Claude 桌面扩展(MCP)三种形态。
 
-**当前状态:** v1.2.0,Windows 与 macOS 版均可用(源码测试 148 通过)。macOS 同时提供 Apple Silicon(arm64)和 Intel(x86_64)两种原生二进制。详细进度见 [PROGRESS.md](PROGRESS.md)。
+**当前状态:** v1.2.0 已有 Windows x64 构建和 macOS arm64/x86_64 原生构建
+路径。该 Release 的二进制尚未签名，也尚未发布 MSI 或 PKG；下述下一版本安装包
+流水线已获批准，但尚未实现或进行安装包验收。详细进度见 [PROGRESS.md](PROGRESS.md)。
 
 ## 它解决什么问题
 
@@ -249,24 +296,55 @@ When collaborating, **share only the masked file**; send the matching Vault JSON
 
 ```powershell
 maskingtool-server.exe mask 报告.md              # 脱敏(键盘前的人就是审核者)
-maskingtool-server.exe restore-doc 报告.masked.md --vault-id <id>
+maskingtool-server.exe restore 报告.masked.md --vault-id <id>
 ```
 
 同一个 exe 三种模式自动选择:带参数 = CLI;stdin 是管道 = MCP 服务器;直接双击 = GUI。
 
 ## 安装
 
-**普通使用者(Windows,无需装 Python):**
+### 当前打包状态与下一版本计划
 
-1. 从本仓库的 GitHub Releases 下载 `maskingtool-windows-standalone.zip`,**完整解压**(exe 依赖同目录的 `_internal`,不能单独拷走);
-2. 要在 Claude Desktop 里用:运行 `packaging\installer\install.bat` 一键安装扩展,或双击 `content-masking-tool-win.mcpb`;
-3. 首次运行后,把团队的真实名单填入 `%APPDATA%\ContentMaskingTool\denylists\` 下的 `people.csv` / `companies.csv`(热加载,保存即生效)。
+下面的安装说明针对现有的 **v1.2.0** 产物。该 Release 保持不变：独立版是
+未签名的 PyInstaller `onedir` ZIP，Claude Desktop 版本则是单独的 MCPB 扩展文件。
 
-构建暂未签名:IT 需将 exe 哈希加入 EDR 白名单。
+从 v1.2.0 之后的首个正式版本开始，已批准的目标是：Windows 提供签名的 x64
+per-machine MSI；macOS 分别提供经过签名、公证并完成 staple 的 arm64 和 x86_64
+PKG。这些原生安装包将提供稳定的机器级路径、MDM 静默安装、版本检测、升级和
+受管卸载，同时保留每位用户的 Vault、名单、设置、历史、审核任务和审计数据。
+MCPB 仍是 Claude Desktop 必需的独立 Release 资产；MSI/PKG 不替代、也不静默安装
+该扩展。工具不会扫描或删除用户手工解压在任意位置的旧 ZIP 副本。
 
-**普通使用者(macOS,无需装 Python):**
+上述 MSI/PKG pipeline **已经批准，但尚未实现或验证**；下一版本号和正式签名身份
+也尚未确定。规范性契约见 [RELEASING.md](RELEASING.md)，计划中的验收矩阵见
+[TESTPLAN.md](TESTPLAN.md)。
 
-macOS 提供**两种架构的原生构建**,按你的 Mac 选一个:
+> **v1.2.0 二进制来自对应的标签 Release。** 当前 [`build`](../../actions/workflows/build.yml) workflow 仍生成 v1.2.0 形态的 `.mcpb`、standalone ZIP 和校验值；未来 pipeline 实现前，本地/CI 构建继续保留该布局。不要把 Actions artifact 当成已签名的正式安装包。
+
+**v1.2.0 普通使用者(Windows,无需装 Python):**
+
+v1.2.0 Release 发布两个 Windows 附件:
+
+- `content-masking-tool-win.mcpb` —— Claude Desktop 扩展(在 Claude *里面*脱敏/还原);
+- `maskingtool-windows-standalone.zip` —— 同一个二进制,用于命令行 / 不装 Desktop 的场景。
+
+*在 Claude Desktop 里用(推荐):*
+
+1. 从 Releases 下载 `content-masking-tool-win.mcpb`;
+2. **双击**它,或在 Claude Desktop 里 **设置 → Extensions → Advanced settings → Install Extension…** 选中它;
+3. 弹出「未经 Anthropic 验证」提示属预期(内部工具),确认安装后**重启 Claude Desktop**;
+4. 首次运行后,把团队的真实名单填入 `%APPDATA%\ContentMaskingTool\denylists\` 下的 `people.csv` / `companies.csv`(热加载,保存即生效)。
+
+> **一键脚本**(同时装好 Desktop 扩展 *并* 注册 Claude Code 的 MCP):在**仓库检出或开发者构建**环境下,把 `content-masking-tool-win.mcpb` 放在 `packaging\installer\install.bat` 旁边(或已构建进 `dist\`),然后运行该脚本。先退出 Claude Desktop —— 脚本会等它关闭。该脚本随仓库分发,**不在** Release 附件或 standalone ZIP 里。
+
+*只用命令行(不装 Claude Desktop):* 下载 `maskingtool-windows-standalone.zip`,**完整解压**(exe 依赖同目录的 `_internal`,不能单独拷走),然后运行 `maskingtool-server\maskingtool-server.exe mask <文件>`(见上方"命令行")。
+
+v1.2.0 构建未签名:IT 需将可执行文件哈希加入 EDR 白名单。该旧版临时措施不代表
+可以发布未签名的正式 MSI。
+
+**v1.2.0 普通使用者(macOS,无需装 Python):**
+
+v1.2.0 构建路径支持**两种原生架构**。仅在 Release 页面确实存在对应资产时使用:
 
 - Apple Silicon(M1/M2/M3/M4):`content-masking-tool-macos-arm64.mcpb`
 - Intel:`content-masking-tool-macos-x86_64.mcpb`
@@ -283,9 +361,11 @@ macOS 提供**两种架构的原生构建**,按你的 Mac 选一个:
 4. 首次启动:因未签名,macOS Gatekeeper 可能拦截。到**系统设置 → 隐私与安全性**(下滑找到被拦提示 →「仍要打开」)放行一次;
 5. 首次运行后,把团队真实名单填入 `~/Library/Application Support/ContentMaskingTool/denylists/` 下的 `people.csv` / `companies.csv`(热加载,保存即生效)。
 
-**备选 —— 手动接(固定位置):**
+**v1.2.0 遗留备选 —— 手动接入(固定位置):**
 
-想自己改配置的话,把工具放到一个**固定位置**,路径就不会失效。直接复制执行(URL/zip 名里按你的架构选):
+这只是历史 unsigned ZIP 的临时用法，不是未来正式 PKG 或 Gatekeeper 方案。确实需要
+使用 v1.2.0 且想自己改配置时，把工具放到一个**固定位置**，路径就不会失效。直接
+复制执行(URL/zip 名里按你的架构选):
 
 ```bash
 # 1. 建安装目录,把独立版解压进去
@@ -296,7 +376,8 @@ ditto -x -k maskingtool-macos-arm64-standalone.zip .
 # 二进制现在位于:
 #   ~/Applications/content-masking-tool/maskingtool-server/maskingtool-server
 
-# 2. 清除 Gatekeeper 隔离标记(未签名构建)
+# 2. 仅限 v1.2.0 遗留 unsigned ZIP：清除隔离标记
+#    未来正式 PKG 必须使用签名 + 公证 + staple，不得以此替代。
 xattr -dr com.apple.quarantine ~/Applications/content-masking-tool/maskingtool-server
 ```
 
@@ -315,7 +396,7 @@ xattr -dr com.apple.quarantine ~/Applications/content-masking-tool/maskingtool-s
 
 把 `你的用户名` 换成你的 macOS 账户名(`whoami` 可查)。同一个 `maskingtool-macos-<架构>-standalone.zip` 也可不依赖 Claude 单独做脱敏/还原——保持二进制旁边的 `_internal` 目录即可。
 
-**开发者:**
+**开发者(当前 v1.2.0 构建路径):**
 
 ```powershell
 uv sync --locked --extra dev
@@ -356,8 +437,11 @@ uv sync --locked --extra dev
 
 ## 路线图 / 支持
 
-- macOS 打包(M11):**已完成**——原生 arm64 + x86_64 构建、双架构 CI。下一步:代码签名 / 公证以免除 Gatekeeper 提示。Stage 2 备选:中文 NER、别名匹配。
-- 文档索引:架构 [CLAUDE.md](CLAUDE.md) · 进度 [PROGRESS.md](PROGRESS.md) · 团队边界指南 [USAGE.md](USAGE.md) · 隐私设计 [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · 审计 [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · 测试计划 [TESTPLAN.md](TESTPLAN.md) · 第三方声明 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- 受管原生安装包：**已规划、未实现**——签名的 Windows x64 per-machine MSI；
+  签名、公证、staple 的 macOS arm64/x86_64 PKG；原子化 Release 发布；继续保留
+  MCPB。当前 v1.2.0 ZIP/MCPB 的证据不能证明未来安装包已通过验证。Stage 2 备选
+  仍为中文 NER 和别名匹配。
+- 文档索引:架构 [CLAUDE.md](CLAUDE.md) · 发布契约 [RELEASING.md](RELEASING.md) · 进度 [PROGRESS.md](PROGRESS.md) · 团队边界指南 [USAGE.md](USAGE.md) · 隐私设计 [PRIVACY_DESIGN.md](PRIVACY_DESIGN.md) · 审计 [AUDIT_GUIDE.md](AUDIT_GUIDE.md) · 测试计划 [TESTPLAN.md](TESTPLAN.md) · 第三方声明 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - 问题反馈:联系维护者 Jeff(内部渠道)。
 
 *本项目按 [GNU AGPL-3.0](LICENSE) 开源发布。*

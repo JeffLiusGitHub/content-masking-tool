@@ -2,9 +2,38 @@
 
 > Plan: [CLAUDE.md](CLAUDE.md) · Test plan & TDD workflow: [TESTPLAN.md](TESTPLAN.md) · Test evidence: [Test result/README.md](Test%20result/README.md). Update this file as milestones complete.
 
-**Last updated:** 2026-07-21
+**Last updated:** 2026-09-14
 
 ## Current status
+
+**Next-release managed installer pipeline approved; implementation not
+started:** on 2026-09-14, release requirements were approved for a per-machine
+Windows x64 MSI and separate macOS arm64/x86_64 PKGs. Formal packages must be
+signed; macOS PKGs must also be notarized and stapled. These native installers
+replace standalone ZIPs beginning with the version after v1.2.0, while the
+Windows and per-architecture macOS MCPB artifacts remain separate required
+Claude Desktop extension assets. The v1.2.0 tag, Release, and assets must not be
+changed or republished.
+
+The planned pipeline must support MDM-safe silent installation, stable version
+detection, in-place upgrade, downgrade protection where applicable, checksum
+and signer verification, and managed uninstall while preserving per-user
+ContentMaskingTool data. Device-management portals, update agents, and masking
+business features remain out of scope.
+
+**Verification status:** MSI/PKG construction, signing, notarization, stapling,
+installation, upgrade, downgrade, uninstall, release-manifest generation, and
+the unified final release job are all **planned and not run**. Existing v1.2.0
+ZIP/MCPB evidence is not evidence for these new installer formats.
+
+**Claude Desktop Windows install repaired and live-verified:** v1.2.0 is now
+installed in the Microsoft Store package's physical LocalCache data root, the
+frozen executable matches the release artifact hash, and Claude Desktop
+connected to `content-masking-tool` and announced all 5 tools. The Windows
+installer now maps the Store app's virtual `%APPDATA%\Claude` path to that
+physical root; it also supports third-party deployment roots and managed MCP
+configuration when present. This is the v1.2.0 repository helper installer,
+not the future per-machine MSI.
 
 **Clean release-build readiness complete:** Windows and macOS release scripts
 now bootstrap an isolated `.build-venv`, install Python and MCPB dependencies
@@ -32,13 +61,42 @@ list, and re-mask every exact occurrence in the source using the same vault.
 Future documents load these terms automatically. Verification: 124 passed;
 frozen MCP/GUI smoke tests passed and Windows artifacts rebuilt.
 
-**Milestones 0–8 complete. Full test suite: 103 passed / 0 failed** (TDD red→green per milestone; evidence with screenshots in `Test result/`). Includes scale validation against a representative 63-name list of fictional placeholders (`tests/test_realworld_names.py`) and name-part expansion (`tests/test_name_expansion.py`).
+**Historical Milestones 0–8 checkpoint: 103 passed / 0 failed** (TDD red→green
+per milestone; evidence with screenshots in `Test result/`). Includes scale
+validation against a representative 63-name list of fictional placeholders
+(`tests/test_realworld_names.py`) and name-part expansion
+(`tests/test_name_expansion.py`). This count is retained as dated history, not
+as a claim about the present worktree or the future installer suite.
 
-The engine, all three input formats, the CLI, and the MCP server are built and tested. What remains is delivery: Claude Desktop end-to-end verification (M9), then PyInstaller + MCPB packaging (M10 Windows, M11 macOS).
+The engine, all three input formats, the CLI, GUI, five-tool MCP server, and
+v1.2.0 Windows delivery path are built and tested as recorded below. Native
+MSI/PKG installers and the atomic signed release workflow are a separate future
+milestone and have no implementation or target-machine evidence yet.
 
 ### Next action
 
-M9 — wire the dev-mode server into Claude Desktop (`claude_desktop_config.json` entry pointing at `.venv\Scripts\python.exe -m maskingtool.mcp_server.server`) and run the manual mask → chat → restore checklist from TESTPLAN section 5.
+Lock the next release version and approve the Windows/macOS publisher and
+package identities. Then implement a single canonical runtime version plus the
+side-effect-free `--version` probe before creating unsigned test-only installer
+projects and their validation harnesses. Do not push, tag, or publish a GitHub
+Release without explicit authorization.
+
+The existing v1.2.0 clean-machine Windows and real macOS artifact verification
+remain separate historical sign-off items.
+
+### Next-release blockers
+
+- Next formal version not assigned; `[Unreleased]` remains the only label.
+- Windows Manufacturer/Publisher, Authenticode identity, RFC 3161 timestamp
+  service, and permanent MSI UpgradeCode not approved.
+- macOS package identifier, Apple Team ID, and Developer ID Application /
+  Installer identities not approved.
+- Runtime metadata still contains a 1.1.0 value while package metadata is
+  1.2.0, and the frozen executable has no `--version` probe.
+- `release-signing` Environment, reviewers, and real secret values are not
+  configured or verified.
+- No clean-VM MSI lifecycle evidence or real macOS arm64/x86_64 PKG signing,
+  notarization, installation, upgrade, or uninstall evidence exists.
 
 ## Milestones
 
@@ -54,8 +112,11 @@ M9 — wire the dev-mode server into Claude Desktop (`claude_desktop_config.json
 | 7 | Deny-list loader + sample CSVs | ✅ 6/6 tests |
 | 8 | MCP server: `schemas.py` + `tools.py` + `server.py` | ✅ 8/8 tests (in-memory MCP client) |
 | 9 | End-to-end verification in a real Claude conversation | ✅ 2026-07-15 — live E2E via MCP tools (mask → tokens-only in chat → restore_document byte-identical). Note: old `claude_desktop_config.json` dev route is dead on the new app; dev `.mcpb` installs but can't run in cowork VM (absolute host path). See `Test result/M9_claude_desktop/` |
-| 10 | PyInstaller + MCPB packaging (Windows) | 🟢 v1.1.0 installed & verified 2026-07-16 — extension upgraded in place (UI was stuck; `upgrade-extension.bat` bypass), live E2E from a real session: mask (15 PERSON + 3 ORG, deny-list + expansion + NER together) → restore_document byte-exact, `unresolved: []`. Artifacts: `.mcpb` (103MB) + `maskingtool-windows-standalone.zip` (dual-mode CLI). **Remaining for sign-off: user chat-window test + clean-machine install** |
-| 11 | macOS packaging | Not started |
+| 10 | PyInstaller + MCPB packaging (Windows) | 🟢 v1.2.0 installed & live-verified 2026-08-06 — Store-path install fixed; frozen smoke passed; Claude connected and announced 5 tools. Artifacts: `.mcpb` + `maskingtool-windows-standalone.zip`. **Remaining for sign-off: clean-machine install** |
+| 11 | macOS PyInstaller + MCPB packaging | 🟡 Native arm64/x86_64 build paths and CI matrix exist; real macOS artifact/install evidence remains incomplete |
+| 12 | macOS frozen/MCPB end-to-end verification | 🟡 Planned historical acceptance step; real macOS installation and conversation evidence remains incomplete |
+| 13 | Managed MSI/PKG installers | 📝 Approved 2026-09-14 — **not started**; Windows x64 MSI and macOS arm64/x86_64 PKG lifecycle/signing checks are planned, not run |
+| 14 | Atomic signed release pipeline | 📝 Approved 2026-09-14 — **not started**; protected fan-in release, manifest, CHANGELOG notes, checksums, and fail-closed publication are planned, not run |
 
 ## Decisions log
 
@@ -88,6 +149,10 @@ M9 — wire the dev-mode server into Claude Desktop (`claude_desktop_config.json
 
 - **2026-07-21** — **Distribution changed to public open source under GNU AGPL-3.0.** This supersedes the 2026-07-14 private/internal distribution decision. PyMuPDF remains bundled under its AGPL option; source history stays free of frozen binaries, local vaults, captures, user configuration, and test evidence. Release binaries belong in GitHub Releases.
 
+- **2026-08-06** — **Windows Store data-root handling fixed.** Store-packaged Claude reports `%APPDATA%\Claude` in process arguments while Windows physically redirects it to `Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude`. The installer now detects that virtualization, preserves timestamped config backups, and registers the frozen binary in the path the running client actually reads. Live evidence: `Connected to content-masking-tool (5 tools)` and `announcing content-masking-tool: 5 tool(s)`.
+
+- **2026-09-14** — **Managed installer/release requirements approved; implementation not started.** Beginning with the version after v1.2.0, a signed per-machine Windows x64 MSI and signed/notarized/stapled macOS arm64/x86_64 PKGs replace standalone ZIPs as formal installation assets. Platform MCPBs remain separate required assets. Releases must be assembled atomically by one protected final job with checksums, a machine-readable release manifest, CHANGELOG-backed notes, silent install/version/upgrade/uninstall contracts, and preservation of per-user data. This supersedes future ZIP and deferred-signing plans, but preserves v1.2.0 as immutable history. No push, tag, or GitHub Release is authorized by this decision.
+
 ## Notes / gotchas discovered
 
 - WindowsApps `python3.exe` on this machine is an install stub — exits with code 49. Don't rely on it.
@@ -95,5 +160,8 @@ M9 — wire the dev-mode server into Claude Desktop (`claude_desktop_config.json
 - Presidio docs moved: microsoft.github.io/presidio → presidio.dataprivacystack.org.
 - Same-value→same-token consistency is NOT automatic in Presidio — the vault's reverse index handles it.
 - MCPB manifest spec lives in `modelcontextprotocol/mcpb` — re-check `MANIFEST.md` at packaging time.
+- The current metadata checker does not yet validate runtime version, native
+  installer metadata, asset filenames, CHANGELOG extraction, or the future
+  release manifest. Treat this as a release blocker, not a passed check.
 - spaCy model for NER mode: `en_core_web_sm` 3.8.0 installed via direct wheel URL (uv).
 - Stage 1 known limitations (documented in code): a name split by Markdown inline formatting (`**Acme** Corp`) is not detected; a token split across DOCX runs by later Word edits is not reassembled on restore.

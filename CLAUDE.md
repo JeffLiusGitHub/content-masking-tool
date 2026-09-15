@@ -14,13 +14,45 @@ Research conclusions:
 
 Target: Windows + macOS, public open-source distribution under AGPL-3.0, Stage 1 scope only (masked MD/HTML output and MD/HTML/DOCX restore; PDF is read/extract-only in Stage 1).
 
-## Windows desktop app — current approved requirements (2026-07-17)
+## Active release directive (approved 2026-09-14)
 
-> This section supersedes earlier Windows UI/standalone assumptions in this document. Implementation status and test evidence remain in [PROGRESS.md](PROGRESS.md).
+> This directive supersedes the future standalone-ZIP and unsigned-release
+> assumptions below. [RELEASING.md](RELEASING.md) is the normative release and
+> managed-installation contract, [TESTPLAN.md](TESTPLAN.md) owns acceptance, and
+> [PROGRESS.md](PROGRESS.md) records what has actually been implemented and run.
+
+- v1.2.0 remains an immutable historical release: unsigned PyInstaller
+  `onedir` standalone ZIPs plus platform MCPBs. Do not alter its tag, release,
+  or assets.
+- Starting with the next unassigned version, formal standalone distribution is
+  a signed x64 per-machine Windows MSI and separate signed, notarized, stapled
+  macOS arm64/x86_64 PKGs. The Windows and per-architecture macOS MCPBs remain
+  separate required release assets for Claude Desktop.
+- Native installers manage machine-level program files only. They must preserve
+  each user's Vaults, deny lists, settings, history, reviews, and audit data,
+  and they must not search for or delete arbitrary v1.2.0 ZIP extractions.
+- PR/local installers may be explicitly unsigned and test-only. A formal tag
+  release must fail closed if signing, notarization, stapling, version,
+  checksum, installation, or asset verification fails.
+- Do not guess the Windows Manufacturer or ARP Publisher, legal signing
+  identities, installer identifiers, Apple Team ID, or secret values. Do not
+  push, tag, or create/publish a GitHub Release without explicit authorization.
+
+## Windows desktop app — v1.2.0 historical requirements (2026-07-17)
+
+> This section records the v1.2.0 GUI/standalone design. Its ZIP distribution
+> rules do not apply to formal releases after v1.2.0; the GUI behavior remains
+> relevant. Implementation status and test evidence remain in
+> [PROGRESS.md](PROGRESS.md).
 
 ### Distribution and three-mode executable
 
-- Ship the Windows app as `dist\maskingtool-windows-standalone.zip`. The recipient must extract and retain the entire `maskingtool-server` directory; the executable is not standalone from its `_internal` dependencies.
+- v1.2.0 shipped the Windows app as
+  `dist\maskingtool-windows-standalone.zip`. A user of that historical package
+  must retain the entire `maskingtool-server` directory; the executable is not
+  standalone from its `_internal` dependencies. Future formal Windows
+  standalone distribution uses the MSI contract in
+  [RELEASING.md](RELEASING.md).
 - The same frozen `maskingtool-server.exe` supports three modes without changing the MCPB manifest:
   1. command-line arguments present → existing CLI;
   2. no arguments and stdin is a pipe → MCP stdio server;
@@ -64,12 +96,18 @@ Target: Windows + macOS, public open-source distribution under AGPL-3.0, Stage 1
 - GUI history is an atomic local index containing input/output paths, action, Vault ID, timestamp, format, and token summary. It has a separate history window and never embeds original secret values.
 - Vaults remain local under `%APPDATA%\ContentMaskingTool\vaults\`. They contain sensitive token-to-original mappings and are never bundled into the standalone ZIP or masked output.
 - For ordinary collaboration, share only the masked output. Share the corresponding Vault JSON only when the recipient must restore, and only through an approved secure channel.
-- To distribute the app, share the Windows standalone ZIP, not an isolated copy of the executable.
+- For v1.2.0 distribution, share the Windows standalone ZIP, not an isolated
+  copy of the executable. Later formal releases use the native installers
+  defined in [RELEASING.md](RELEASING.md).
 
 ### Windows GUI acceptance criteria
 
 - Source test suite remains green, including: three-mode routing; preview creates no files; commit creates output/Vault/history; cancellation creates nothing; output collision suffixes; unique/ambiguous Vault matching; bilingual defaults and persistence; manual-term idempotency and full-document re-mask; exact round-trip.
-- Frozen verification must include: MCP stdio smoke test, CLI invocation, GUI launch, first-run tutorial, language switching, preview-before-save, manual missed-term correction, explicit restore confirmation, and rebuilt standalone ZIP/MCPB artifacts.
+- v1.2.0 frozen verification includes MCP stdio smoke, CLI invocation, GUI
+  launch, tutorial/language/preview/manual-review/restore checks, and onedir
+  ZIP/MCPB artifacts. Future formal releases additionally require the MSI/PKG
+  acceptance matrix in [TESTPLAN.md](TESTPLAN.md); source or frozen-binary tests
+  are not installer evidence.
 
 ## Mandatory human review via async Review Jobs (approved 2026-07-17)
 
@@ -95,7 +133,7 @@ This dev machine only has Python 2.7.18 (`C:\Python27`); the WindowsApps `python
   src\maskingtool\
     __init__.py
     __main__.py              # `python -m maskingtool` entry
-    cli.py                   # mask / restore / restore-doc subcommands
+    cli.py                   # mask / restore subcommands
     config.py                # per-OS app-data path resolution (platformdirs), settings.json
     spans.py                 # TextSpan dataclass + SourceRef types
     vault.py                 # Vault class, on-disk JSON format
@@ -112,7 +150,7 @@ This dev machine only has Python 2.7.18 (`C:\Python27`); the WindowsApps `python
       docx_renderer.py       # write masked/restored runs back into a .docx copy
     mcp_server\
       server.py              # MCP stdio server entry, tool registration
-      tools.py               # mask_document / restore_text / restore_document impl
+      tools.py               # five review/mask/restore MCP tool implementations
       schemas.py             # pydantic in/out models
     denylist\
       loader.py              # copies sample lists to app-data on first run, reloads live
@@ -152,32 +190,56 @@ Runs as a normal editable package during development (`uv pip install -e .`, `py
 
 **Operator pair (`operators.py`)** — masking via a Presidio `Operator` subclass (`operator_name="vault_anonymize"`) whose `operate()` calls `vault.get_or_create_token(...)`. **Restore** is a plain regex scan for the token pattern + `vault.resolve()` — deliberately *not* routed through Presidio's `DeanonymizeEngine`, since fixed-format tokens don't need NLP to find, and this keeps restore fast/dependency-light/version-stable.
 
-**Deny-list wiring (`recognizers.py`)** — `build_registry(deny_lists, enable_ner, ner_backend)` starts from an **empty** `RecognizerRegistry()` (no `load_predefined_recognizers()`), adds one `PatternRecognizer(deny_list=terms, deny_list_score=1.0)` per list (ORG, PERSON). Only if `enable_ner` is true (off by default), additionally registers a spaCy/GLiNER recognizer at a lower score threshold — it can only add matches Presidio ranks below deny-list hits, never override them. A dedicated test (`test_recognizers_priority.py`) asserts this directly (name present in both deny-list and NER output → deny-list's token wins), not just assumed from default overlap resolution.
+**Deny-list wiring (`recognizers.py`)** — `build_registry(deny_lists, enable_ner, ner_backend)` starts from an **empty** `RecognizerRegistry()` (no `load_predefined_recognizers()`), adds one `PatternRecognizer(deny_list=terms, deny_list_score=1.0)` per list (ORG, PERSON). When `enable_ner` is true (on by default in the current implementation), it additionally registers a spaCy recognizer at a lower score threshold — it can only add matches Presidio ranks below deny-list hits, never override them. A dedicated test (`test_recognizers_priority.py`) asserts this directly (name present in both deny-list and NER output → deny-list's token wins), not just assumed from default overlap resolution.
 
-NER toggle lives in `%APPDATA%\ContentMaskingTool\settings.json` (`{"enable_ner": false, "ner_backend": "spacy"}`).
+NER toggle lives in `%APPDATA%\ContentMaskingTool\settings.json` (`{"enable_ner": true, "ner_backend": "spacy"}`).
 
 ## MCP tool shapes
 
-1. **`mask_document`** — in: `{file_path, output_format: "markdown"|"html", enable_ner?, existing_vault_id?}`. Parses by extension → spans → `MaskingEngine` → creates/reuses `Vault` → renders → saves vault. Out: `{vault_id, masked_text, output_format, entity_counts, warnings}`.
-2. **`restore_text`** — in: `{vault_id, masked_text}`. Loads vault, regex-scans tokens, resolves, leaves unresolved tokens intact. Out: `{restored_text, unresolved_tokens}`. Works across turns/sessions since state is on disk, not server memory.
-3. **`restore_document`** — in: `{vault_id, masked_file_path, output_format: "markdown"|"html"|"docx"}`. Regex-replaces tokens in file contents (MD/HTML) or in DOCX run text directly. Out: `{output_file_path, unresolved_tokens}`.
+The current MCP surface has five tools and requires out-of-band human review:
 
-`vault_id` is minted by `mask_document` and carried forward by Claude across turns — no server-side session state needed, which matters because the frozen binary may restart between turns.
+1. **`mask_document`** — validates the input, creates a review job, opens the
+   local review GUI, and returns `{review_id, status}` without document content.
+2. **`get_review_status`** — bounded long-poll for the review state.
+3. **`get_review_result`** — returns approved masked text, Vault ID, counts, and
+   manual terms only after the review reaches `completed`.
+4. **`restore_text`** — restores known tokens in text and reports unresolved
+   tokens; state remains on disk across processes.
+5. **`restore_document`** — restores a masked file locally and returns the
+   output path and unresolved-token result.
+
+`vault_id` is returned by `get_review_result` only after approval and can be
+carried across turns — no server-side session state is needed because the
+mapping remains on disk even if the frozen binary restarts.
 
 ## MCPB packaging plan
 
-`packaging/mcpb/manifest.json`: `server.type: "binary"`, entry points at per-OS frozen binaries (`maskingtool-server.exe` / `maskingtool-server`), plus the 3 tool declarations (re-check exact required fields against `modelcontextprotocol/mcpb`'s `MANIFEST.md` at implementation time, since the spec may have moved).
+The Windows and macOS MCPB manifests use `server.type: "binary"`, point at the
+platform frozen binary, and declare the same five review-aware tools. MCPB is a
+required release format for Claude Desktop and remains separate from native
+standalone installers.
 
-PyInstaller: `--onedir` (NOT onefile — a 150MB onefile self-extracts on every server spawn, and onedir triggers fewer AV/EDR false positives; the .mcpb zips the directory anyway), entry = `mcp_server/server.py:main`, console mode (stdio server needs stdin/stdout). Audit `hiddenimports`/`datas` for spaCy's model data and Presidio's dynamically-registered recognizers. Two manual build scripts (`build_windows.ps1`, `build_macos.sh`) — no CI needed for solo/internal distribution; PyInstaller doesn't cross-compile, so each runs on its own OS. If the manifest spec doesn't support per-platform entry points, ship two `.mcpb` files.
+PyInstaller uses `onedir` (not `onefile`), entry =
+`mcp_server/server.py:main`, and console mode for MCP stdio. The executable
+depends on the adjacent `_internal` tree. Existing scripts and GitHub Actions
+build Windows x64 and native macOS arm64/x86_64 frozen bundles and MCPBs. The
+future MSI/PKG stages consume those bundles and replace only the formal
+standalone ZIP assets; see [RELEASING.md](RELEASING.md).
 
 **Packaging decisions (2026-07-16, requirement change: names are RANDOM, not from a known list):**
 - **NER model `en_core_web_sm` is bundled** in the frozen build and `enable_ner` defaults to **true** — random names are detected by NER; the deny-list remains the highest-priority channel for known-critical names.
 - **No fixed team name list ships in the package** — bundled sample CSVs are generic placeholders only (Acme Corp / John Smith). Teams add their own names post-install; lists are hot-reloaded per call.
-- Unsigned build initially: internal distribution via intranet share; IT whitelists the exe hash for EDR. Code signing deferred until security review or complaint volume demands it.
+- v1.2.0 builds are unsigned historical artifacts. The 2026-09-14 directive
+  supersedes the former decision to defer signing: later formal releases must
+  meet the signing and notarization gates in [RELEASING.md](RELEASING.md).
 
 Name lists: bundled sample CSVs ship inside the binary as defaults; `denylist/loader.py` copies them to the app-data dir on first run if absent, and re-reads live on every `mask_document` call (no caching) — editing the CSV takes effect immediately, no rebuild.
 
-## Build order & verification
+## Original Stage 1 build order & verification (historical)
+
+The sequence below records the v1.2.0-era build path. It is not the release
+procedure for the planned MSI/PKG pipeline; use [RELEASING.md](RELEASING.md)
+and [TESTPLAN.md](TESTPLAN.md) for that work.
 
 1. `spans.py` + `vault.py` + tests — pure data structures, no Presidio. `pytest tests/test_vault.py`.
 2. `recognizers.py` + `operators.py` + `engine.py` against plain strings. Verify: masking `"Acme Corp works with John Smith"` produces stable tokens and round-trips exactly through restore.

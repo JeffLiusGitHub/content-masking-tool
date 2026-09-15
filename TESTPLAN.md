@@ -20,11 +20,14 @@ The core promise of this tool is *lossless reversibility*: `restore(mask(text)) 
 |---|---|---|---|
 | Unit | pytest | vault, spans, recognizers, operators, each parser/renderer in isolation | every change (`pytest -x`) |
 | Integration | pytest | full engine pipeline per format; MCP server driven by MCP SDK in-memory client | every milestone completion |
-| E2E (manual checklist) | Claude Desktop | dev-mode config flow; frozen exe; `.mcpb` double-click install | milestones 9–12 |
+| E2E / release acceptance | Claude Desktop, clean Windows/macOS targets, GitHub Actions | dev-mode flow; frozen exe; `.mcpb`; MSI/PKG lifecycle; signed asset and publication gates | milestones 9–14 |
 
 Coverage target: **≥90% on `vault.py` / `engine.py` / `operators.py` / `recognizers.py`** (the correctness core). Parsers/renderers ≥80%. No coverage chasing on `cli.py` / `server.py` glue.
 
-**NER-dependent tests** are marked `@pytest.mark.ner` and auto-skip when the spaCy/GLiNER model isn't downloaded — the default suite must pass on a fresh offline machine, because deny-list-only is the default product configuration.
+**NER-dependent tests** are marked `@pytest.mark.ner` and may skip when the
+model is unavailable in a development environment. Production builds bundle
+the configured spaCy model and enable NER by default; the deterministic
+deny-list suite must also remain green when NER is explicitly disabled.
 
 ## 3. Universal invariants (property-style, asserted everywhere applicable)
 
@@ -135,16 +138,18 @@ Driven via the MCP Python SDK in-memory/stdio test client. No Claude Desktop inv
 
 | Case | Assertion |
 |---|---|
-| tool discovery | exactly `mask_document`, `restore_text`, `restore_document` listed, schemas valid |
-| mask happy path | mask fixture `.md` → response has `vault_id`, `masked_text`, `entity_counts`; masked_text clean (INV-3) |
-| cross-"session" restore | new server instance (fresh process state) + old `vault_id` → `restore_text` succeeds (INV-5) |
+| tool discovery | exactly `mask_document`, `get_review_status`, `get_review_result`, `restore_text`, and `restore_document` listed; schemas valid |
+| review start is content-free | `mask_document` returns a review handle/status; neither original nor masked document content crosses the MCP boundary before approval |
+| review status | `get_review_status` reports `waiting_for_user`, `completed`, `cancelled`, or `failed`; bounded long-polling returns when the state changes |
+| review result gate | `get_review_result` returns approved masked content and its `vault_id` only after completion; waiting/cancelled/failed reviews are rejected |
+| cross-"session" restore | new server instance (fresh process state) + approved review's `vault_id` → `restore_text` succeeds (INV-5) |
 | restore_document docx | full file round-trip via tool calls |
 | error: missing file | structured error message, not a traceback |
-| error: bad vault_id | structured "vault not found" error |
+| error: bad review/vault id | structured not-found error |
 | error: unsupported extension | `.xlsx` → clear unsupported-format error |
 | error: scanned pdf | surfaced as warning per 4.6 |
 
-## 5. E2E manual checklists (Milestones 9–12)
+## 5. E2E manual checklists (Milestones 9–14)
 
 **M9 — Claude Desktop dev mode:** config points at dev server → tools visible in Claude → "mask report.docx and summarize" works → real names never appear in conversation → next-turn "restore the names" works → restart Claude Desktop mid-flow and restore still works with the old vault_id.
 
@@ -153,6 +158,15 @@ Driven via the MCP Python SDK in-memory/stdio test client. No Claude Desktop inv
 **M11 — `.mcpb`:** double-click install on a machine/profile without Python → repeat M9 checklist.
 
 **M12 — macOS:** repeat M10 + M11 on macOS build.
+
+**M13 — managed native installers (planned, not run):** consume the frozen
+`onedir` bundles to build a Windows x64 per-machine MSI and separate macOS
+arm64/x86_64 PKGs, then run the platform matrices in section 9.
+
+**M14 — atomic signed release (planned, not run):** retain platform MCPBs,
+remove standalone ZIPs from formal release assets, and publish only through a
+single protected final job after every build/sign/notarize/verify dependency
+succeeds.
 
 ## 6. Fixtures inventory
 
@@ -168,8 +182,11 @@ Generated fixtures keep binary blobs out of the repo and make the fixture's stru
 
 ## 7. Stage 1 acceptance criteria (definition of done)
 
-1. Full `pytest` suite green on a clean machine **without** any NER model downloaded (deny-list-only default).
-2. `@ner` suite green on a machine with the model present.
+1. Full `pytest` suite green on a clean machine with the locked release
+   dependencies installed; any conditional skip is reported and is not counted
+   as a pass for a release dependency.
+2. `@ner` suite green with the bundled release model present, and deterministic
+   deny-list coverage green with NER explicitly disabled.
 3. INV-1/INV-3 hold on all three input formats end-to-end via MCP tools.
 4. M9–M11 manual checklists signed off on Windows; M12 on macOS.
 5. A non-technical user can install the `.mcpb` by double-click and complete mask → summarize → restore in one Claude conversation without touching a terminal.
@@ -177,3 +194,90 @@ Generated fixtures keep binary blobs out of the repo and make the fixture's stru
 ## 8. Out of scope for this test plan (Stage 2)
 
 Masked PDF/DOCX output rendering, PDF restore, OCR paths, fuzzy/alias matching, ChatGPT/VS Code integrations, performance/load testing (documents are user-scale, not batch-scale).
+
+## 9. Next-release installer and release acceptance
+
+> **Status:** Approved on 2026-09-14. Every case in this section is planned and
+> has not been run. It must not be cited as release evidence until a dated
+> result identifies the tested commit, package hash, target machine, command,
+> result, and log location.
+
+The installer formats begin with the version after v1.2.0. The existing v1.2.0
+tag and release remain unchanged. MSI/PKG replace standalone ZIPs as formal
+installation assets; Windows and per-architecture macOS MCPBs remain separate
+Claude Desktop extension assets. The IDs below are stable acceptance-case
+identifiers; their governing release behavior is defined in
+[RELEASING.md](RELEASING.md).
+
+### 9.1 Automated metadata and contract tests
+
+| ID | Requirement | Planned acceptance | Status |
+|---|---|---|---|
+| VER-001 | version normalization | Git tag, application version, three-part MSI ProductVersion, MSI display version, PKG version, MCPB versions, and manifest version agree; prerelease/build metadata, fourth/non-numeric components, leading zeroes, major/minor above 255, and patch above 65535 are rejected without truncation | Planned — not run |
+| VER-002 | machine-readable version | both the installed Windows exe and installed macOS launcher print exactly `maskingtool-server MAJOR.MINOR.PATCH`, exit zero, write no other stdout or user data, and do not start GUI or MCP mode | Planned — not run |
+| META-001 | installer metadata | MSI and PKG metadata expose the expected stable identifiers, version, architecture, and approved publisher/team values | Planned — not run |
+| META-002 | release manifest | schema, required fields, asset inventory, size, SHA-256, identifiers, commands, tag, and commit match the built artifacts | Planned — not run |
+| META-003 | release notes | extraction selects the matching `CHANGELOG.md` version section and fails when it is missing, empty, or ambiguous | Planned — not run |
+| META-004 | implementation language | new installer project names, workflow/job/step identifiers, code comments, and implementation/operator documentation are in English | Planned — not run |
+| META-005 | local test-build instructions | after installer projects exist, English instructions give reproducible prerequisites, copy-pasteable exact unsigned-test MSI/PKG commands, architecture, output names, and verification steps; before implementation, no fabricated command is published | Planned — not run |
+| SEC-001 | credential isolation | fork and ordinary PR jobs cannot access signing credentials; logs, caches, artifacts, and test snapshots contain no secret material | Planned — not run |
+| SEC-002 | protection integrity | no build or test path bypasses production signing, notarization, stapling, Gatekeeper, downgrade protection, or fail-closed publication to obtain a passing result | Planned — not run |
+
+### 9.2 Windows x64 per-machine MSI
+
+Run installation lifecycle cases on a clean Windows runner or VM, including an
+MDM-equivalent SYSTEM context where required.
+
+| ID | Planned verification | Acceptance | Status |
+|---|---|---|---|
+| WIN-001 | package layout | a real WiX 4 per-machine MSI installs the complete PyInstaller onedir tree, including `_internal`, beneath the stable Program Files product directory | Planned — not run |
+| WIN-002 | MSI identity | UpgradeCode remains permanent; ProductCode differs between formal versions but is deterministic across two builds of the same immutable tag; ProductVersion, DisplayVersion, DisplayName, MSI Manufacturer, ARP Publisher, architecture, and registration match their separate release-manifest fields | Planned — not run |
+| WIN-003 | silent install | `msiexec /i package.msi /qn /norestart /log install.log` succeeds as SYSTEM using standard MSI exit codes; any possible 3010 handling is documented, no restart is required where avoidable, and version/frozen smoke probes pass afterward | Planned — not run |
+| WIN-004 | repeat and upgrade | same-version deployment is idempotent; a prior MSI performs one in-place Major Upgrade; old and new copies do not coexist | Planned — not run |
+| WIN-005 | downgrade protection | installing an older package over a newer one is blocked with an intentional, diagnosable result | Planned — not run |
+| WIN-006 | managed uninstall | `msiexec /x {ProductCode} /qn /norestart /log uninstall.log` removes only installer-owned program files and registration | Planned — not run |
+| WIN-007 | data retention and context | install, repair, upgrade, and ordinary uninstall as SYSTEM preserve user-profile sentinels for `%APPDATA%\ContentMaskingTool\` Vaults, deny lists, settings, history, reviews, and audit data; no application state is redirected into SYSTEM or another user's profile | Planned — not run |
+| WIN-008 | signing and hash | applicable EXE/DLL/PYD files are Authenticode-signed before MSI creation; the MSI is then signed with an RFC 3161 timestamp; the Authenticode subject, independently approved ARP Publisher, signatures, version, and SHA-256 verify against their separate manifest fields | Planned — not run |
+| WIN-009 | unsigned policy | PR builds may emit clearly labelled unsigned test-only MSI artifacts; a formal tag build fails when production signing is unavailable or invalid | Planned — not run |
+| WIN-010 | MDM detection | Windows Installer registration by UpgradeCode/ProductCode, the expected installed three-part version, and the installed executable's exact `--version` result agree; detection does not invoke `Win32_Product` | Planned — not run |
+| WIN-011 | repair lifecycle | same-version silent repair remains x64/per-machine in SYSTEM context, returns a standard MSI result, restores only installer-owned program files, and preserves all per-user data sentinels | Planned — not run |
+
+### 9.3 macOS PKG, per architecture
+
+Run every applicable case independently for `arm64` and `x86_64`; a universal2
+package is out of scope unless every bundled binary is separately proven safe
+for that layout.
+
+| ID | Planned verification | Acceptance | Status |
+|---|---|---|---|
+| MAC-001 | package layout | a real PKG installs the complete onedir payload into the documented machine-level directory and installs only the intended secure launcher/entry point | Planned — not run |
+| MAC-002 | architecture | installed Mach-O files match the asset architecture; Intel support is not silently dropped | Planned — not run |
+| MAC-003 | silent install | `sudo installer -pkg package.pkg -target /` succeeds non-interactively with expected root ownership and file modes | Planned — not run |
+| MAC-004 | receipt and version | `pkgutil --pkg-info` reports the stable package identifier and release version; the application version probe and minimal smoke test pass | Planned — not run |
+| MAC-005 | repeat and upgrade | repeated installation is idempotent and a prior PKG upgrades without removing per-user data | Planned — not run |
+| MAC-006 | managed uninstall | the PKG installs the root-owned mode-0755 helper at `/Library/Application Support/ContentMaskingTool/uninstall.sh`; the manifest records a literal guarded invocation that is idempotent, removes only allow-listed package files/receipt, and preserves user data | Planned — not run |
+| MAC-007 | data retention | install, upgrade, and managed uninstall preserve `~/Library/Application Support/ContentMaskingTool/` | Planned — not run |
+| MAC-008 | nested signing | applicable nested Mach-O files are signed from the inside out with Developer ID Application, hardened runtime where applicable, and a secure timestamp | Planned — not run |
+| MAC-009 | package trust | the final PKG is signed with Developer ID Installer, submitted with `notarytool`, stapled, and passes `codesign --verify --deep --strict --verbose`, `pkgutil --check-signature`, `spctl -a -vv -t install`, and `xcrun stapler validate` | Planned — not run |
+| MAC-010 | unsigned policy | PR builds may emit clearly labelled unsigned layout-test PKGs; a formal tag build fails on missing or failed signing, notarization, stapling, or verification | Planned — not run |
+| MAC-011 | uninstall failure safety | empty/root/home/wildcard/parent/unexpected targets are rejected; simulated launcher or payload deletion failure leaves the receipt and retryable helper intact; already-absent fully removed state succeeds; partial state fails | Planned — not run |
+
+### 9.4 Unified release workflow
+
+| ID | Planned verification | Acceptance | Status |
+|---|---|---|---|
+| REL-001 | source identity | every MSI, PKG, MCPB, checksum, manifest entry, and release note comes from one tag and commit | Planned — not run |
+| REL-002 | required assets | final assets include Windows x64 MSI, macOS arm64/x86_64 PKGs, Windows/macOS MCPBs, checksums, and `release-manifest.json` | Planned — not run |
+| REL-003 | naming | formal filenames contain product, platform, architecture, and version; standalone ZIP is not uploaded as a formal release asset | Planned — not run |
+| REL-004 | atomic publication | platform jobs upload internal artifacts; one protected final job creates a draft only after every required build, test, signature, notarization, and verification succeeds | Planned — not run |
+| REL-005 | failure behavior | no `|| true` or equivalent masks release failures, and a failed or missing platform cannot produce a partial public release | Planned — not run |
+| REL-006 | release manifest | top-level release identity and each asset's size, hash, signer, installer identifiers, silent-install, uninstall, and version-probe contracts validate | Planned — not run |
+| REL-007 | release notes | published notes come from or are synchronized with the matching CHANGELOG section, not only a generated commit comparison | Planned — not run |
+| REL-008 | credential boundary | only the protected `release-signing` environment can access signing credentials; temporary certificate, P12, keychain, and API-key material is always deleted | Planned — not run |
+| REL-009 | v1.2.0 protection | no workflow step edits, recreates, or uploads replacement assets to the existing v1.2.0 release | Planned — not run |
+| REL-010 | MCPB separation | on both platforms, native install, repair/repeat install, upgrade, and uninstall neither install/remove an MCPB nor change pre-existing Claude extension/configuration state | Planned — not run |
+| REL-011 | permissions and event guards | only the final release job has `contents: write`; PRs, forks, branches, and unauthorized tags cannot access production credentials, create a draft, or upload any GitHub Release asset | Planned — not run |
+| REL-012 | downloaded-asset revalidation | the final job rechecks the downloaded platform artifacts' inventory, byte sizes, SHA-256, versions, installer identifiers, signatures, notarization/staple evidence, tag, and commit before draft publication | Planned — not run |
+| REL-013 | forced-failure cleanup | injected build, signing, timestamp, notarization, staple, verification, and upload failures block publication; unconditional cleanup removes temporary PFX/P12/P8/keychain/password material and sanitized logs/artifacts reveal no secrets | Planned — not run |
+| MIG-001 | ZIP migration | installers do not scan for or delete arbitrary manually extracted v1.2.0 ZIP copies; any future managed cleanup is restricted to an explicitly approved fixed path | Planned — not run |
+| EVD-001 | external environment evidence | when hosted runners cannot reliably cover a system case, a repeatable local/VM script plus English operator instructions exist and record commit, artifact hash, target environment, exact commands, result, and log location; the case remains not run until that evidence exists | Planned — not run |
