@@ -6,6 +6,11 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.1-test.1] - 2026-09-16
+
+> Unsigned testing prerelease for Portal/MDM import and native installer
+> lifecycle validation. It is not a production-signed release.
+
 ### Added
 - Unsigned-test-only native installer projects: a WiX 4 x64/per-machine MSI
   and separate macOS arm64/x86_64 PKGs, with CI lifecycle checks for layout,
@@ -66,5 +71,6 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Builds remain unsigned; macOS Gatekeeper / Windows SmartScreen prompts are
   expected. Signing and notarization are planned next.
 
-[Unreleased]: https://github.com/JeffLiusGitHub/content-masking-tool/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/JeffLiusGitHub/content-masking-tool/compare/v1.2.1-test.1...HEAD
+[1.2.1-test.1]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.1-test.1
 [1.2.0]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.0

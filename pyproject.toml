@@ -1,6 +1,6 @@
 [project]
 name = "maskingtool"
-version = "1.2.0"
+version = "1.2.1"
 description = "Local content masking tool: reversible, deterministic masking of company/people names in MD/DOCX/PDF before sending to AI"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
