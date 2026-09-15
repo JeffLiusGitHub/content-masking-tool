@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -23,6 +24,8 @@ EXPECTED_TOOLS = (
     "restore_document",
 )
 EXPECTED_LICENSE = "AGPL-3.0-only"
+VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+MSI_VERSION_LIMITS = (255, 255, 65535)
 
 
 def _read_project_metadata() -> dict:
@@ -35,12 +38,50 @@ def _read_manifest(path: Path) -> dict:
         return json.load(handle)
 
 
+def _read_runtime_version() -> str:
+    source = (ROOT / "src" / "maskingtool" / "__init__.py").read_text(encoding="utf-8")
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']\s*$', source, re.MULTILINE)
+    if not match:
+        raise ValueError("src/maskingtool/__init__.py has no literal __version__")
+    return match.group(1)
+
+
+def validate_installer_version(version: str) -> tuple[int, int, int]:
+    """Validate strict SemVer-to-MSI three-part version compatibility."""
+
+    match = VERSION_RE.fullmatch(version)
+    if not match:
+        raise ValueError(
+            f"version {version!r} must be exactly MAJOR.MINOR.PATCH with no "
+            "leading zeroes, prerelease, build metadata, or fourth field"
+        )
+    parts = tuple(int(value) for value in match.groups())
+    if any(value > limit for value, limit in zip(parts, MSI_VERSION_LIMITS, strict=True)):
+        raise ValueError(
+            f"version {version!r} exceeds MSI limits "
+            "(major/minor <= 255, patch <= 65535)"
+        )
+    return parts
+
+
 def validate_release_metadata(expected_version: str | None = None) -> tuple[str, int]:
     """Return the validated version and tool count, or raise ValueError."""
 
     project = _read_project_metadata()
     project_version = project["version"]
     errors: list[str] = []
+
+    try:
+        validate_installer_version(project_version)
+    except ValueError as exc:
+        errors.append(str(exc))
+
+    runtime_version = _read_runtime_version()
+    if runtime_version != project_version:
+        errors.append(
+            f"runtime version {runtime_version!r} does not match "
+            f"pyproject version {project_version!r}"
+        )
 
     if project.get("license") != EXPECTED_LICENSE:
         errors.append(

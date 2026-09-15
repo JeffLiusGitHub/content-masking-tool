@@ -118,6 +118,13 @@ build_one() {
 
   echo "== 6/9 Smoke test frozen MCP stdio server ($ARCH) =="
   "$PYTHON" "$SCRIPT_DIR/smoke_frozen.py" "$EXE"
+  local VERSION VERSION_OUTPUT
+  VERSION="$(cd "$ROOT" && "$PYTHON" -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+  VERSION_OUTPUT="$("$EXE" --version)"
+  if [[ "$VERSION_OUTPUT" != "maskingtool-server $VERSION" ]]; then
+    echo "ERROR: frozen version probe mismatch: $VERSION_OUTPUT" >&2
+    exit 1
+  fi
 
   echo "== 7/9 Assemble production MCPB payload ($ARCH) =="
   local STAGE

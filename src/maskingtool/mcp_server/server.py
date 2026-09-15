@@ -9,6 +9,7 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
+from maskingtool import __version__
 from maskingtool.mcp_server import tools
 from maskingtool.mcp_server.schemas import (
     MaskReviewStarted,
@@ -90,6 +91,10 @@ def restore_document(
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--version"]:
+        print(f"maskingtool-server {__version__}")
+        return
+
     # One frozen binary: arguments = CLI, piped stdin = MCP, interactive
     # double-click/terminal launch = desktop GUI.
     from maskingtool.runtime import choose_run_mode
