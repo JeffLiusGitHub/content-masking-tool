@@ -14,9 +14,10 @@ Local-first, reversible masking of company and people names in documents (MD/TXT
 
 **Status:** v1.2.0 has a Windows x64 build and native macOS arm64/x86_64
 build paths. Its release binaries are unsigned, and no MSI or PKG has shipped.
-Unsigned-test-only MSI/PKG projects now exist for the next-release pipeline;
-clean CI lifecycle evidence and all production signing/notarization work are
-still pending. Details in [PROGRESS.md](PROGRESS.md).
+Unsigned-test-only MSI/PKG projects now exist for the next-release pipeline and
+have passed clean CI lifecycle checks on Windows x64 and macOS arm64/x86_64;
+all production signing/notarization work remains pending. Details in
+[PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -94,8 +95,8 @@ Claude Desktop; MSI/PKG will not replace or silently install the extension.
 Manually extracted legacy ZIP copies will not be searched for or deleted.
 
 Unsigned-test-only MSI/PKG build projects and lifecycle checks are now
-implemented, but clean CI evidence is pending and they are **not formal release
-packages**. No next version number or production signing identity has been assigned. See
+implemented and have passed clean CI lifecycle checks, but they are **not
+formal release packages**. No next version number or production signing identity has been assigned. See
 [RELEASING.md](RELEASING.md) for the normative contract and
 [TESTPLAN.md](TESTPLAN.md) for the planned acceptance matrix.
 
@@ -318,8 +319,9 @@ PKG。这些原生安装包将提供稳定的机器级路径、MDM 静默安装�
 MCPB 仍是 Claude Desktop 必需的独立 Release 资产；MSI/PKG 不替代、也不静默安装
 该扩展。工具不会扫描或删除用户手工解压在任意位置的旧 ZIP 副本。
 
-目前已经实现明确标记为 `unsigned-test-only` 的 MSI/PKG 构建项目和生命周期检查，
-但干净 CI 的证据仍待取得，而且这些包**不是正式 Release 安装包**。下一版本号和
+目前已经实现明确标记为 `unsigned-test-only` 的 MSI/PKG 构建项目，并已在 Windows
+x64、macOS arm64 和 macOS x86_64 的干净 CI 上通过生命周期检查，但这些包**不是
+正式 Release 安装包**。下一版本号和
 正式签名身份也尚未确定。规范性契约见 [RELEASING.md](RELEASING.md)，验收矩阵见
 [TESTPLAN.md](TESTPLAN.md)。
 

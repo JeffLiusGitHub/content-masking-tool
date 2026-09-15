@@ -6,8 +6,8 @@
 
 ## Current status
 
-**Next-release managed installer test pipeline implemented; CI evidence
-pending:** on 2026-09-14, release requirements were approved for a per-machine
+**Next-release managed installer test pipeline implemented and CI-verified:**
+on 2026-09-14, release requirements were approved for a per-machine
 Windows x64 MSI and separate macOS arm64/x86_64 PKGs. Formal packages must be
 signed; macOS PKGs must also be notarized and stapled. These native installers
 replace standalone ZIPs beginning with the version after v1.2.0, while the
@@ -28,8 +28,11 @@ install, repeat install, uninstall, receipt/registration, layout, architecture,
 and user-data preservation. A fresh Windows frozen build passed its five-tool
 smoke and exact version probe, a local WiX compile produced a real
 `unsigned-test-only` MSI, all 174 source tests passed, and the focused installer
-suite passed 27 tests. Clean CI
-installation evidence is still pending. Production signing, notarization,
+suite passed 27 tests. GitHub Actions run
+[`34936179341`](https://github.com/JeffLiusGitHub/content-masking-tool/actions/runs/34936179341)
+then built and passed full install/reinstall/uninstall lifecycle checks for
+Windows x64, macOS arm64, and macOS x86_64, and uploaded all three artifact
+sets. Production signing, notarization,
 stapling, upgrade/downgrade matrices, release-manifest generation, and the
 protected unified final release job remain **not implemented or not run**.
 Existing v1.2.0 ZIP/MCPB evidence is not evidence for these new installer
@@ -84,8 +87,7 @@ atomic signed release workflow remain separate future work.
 
 ### Next action
 
-Run the new Windows/macOS installer jobs from a clean pushed branch and record
-their lifecycle evidence. Then lock the next release version and approve the
+Lock the next release version and approve the
 Windows/macOS publisher and package identities before production signing and
 the protected final release job. Do not push, tag, or publish a GitHub Release
 without explicit authorization.
@@ -102,8 +104,9 @@ remain separate historical sign-off items.
   Installer identities not approved.
 - `release-signing` Environment, reviewers, and real secret values are not
   configured or verified.
-- No clean-runner MSI/PKG lifecycle evidence or real macOS arm64/x86_64 signing,
-  notarization, installation, upgrade, or uninstall evidence exists.
+- Upgrade/downgrade tests across two distinct installer versions have not run.
+- No production Authenticode or Apple signing, notarization, staple, or
+  Gatekeeper evidence exists; current MSI/PKG artifacts are unsigned test-only.
 
 ## Milestones
 
@@ -122,7 +125,7 @@ remain separate historical sign-off items.
 | 10 | PyInstaller + MCPB packaging (Windows) | 🟢 v1.2.0 installed & live-verified 2026-08-06 — Store-path install fixed; frozen smoke passed; Claude connected and announced 5 tools. Artifacts: `.mcpb` + `maskingtool-windows-standalone.zip`. **Remaining for sign-off: clean-machine install** |
 | 11 | macOS PyInstaller + MCPB packaging | 🟡 Native arm64/x86_64 build paths and CI matrix exist; real macOS artifact/install evidence remains incomplete |
 | 12 | macOS frozen/MCPB end-to-end verification | 🟡 Planned historical acceptance step; real macOS installation and conversation evidence remains incomplete |
-| 13 | Managed MSI/PKG installers | 🟡 Test implementation 2026-09-15 — WiX 4 MSI and per-architecture PKG projects plus lifecycle harnesses exist; local unsigned MSI compiled, clean CI/real macOS/signing evidence pending |
+| 13 | Managed MSI/PKG installers | 🟡 Unsigned test implementation CI-verified 2026-09-15 — Windows x64 and both macOS architectures passed build/install/reinstall/uninstall/data-retention checks; production identities, upgrade matrices, signing/notarization/stapling remain |
 | 14 | Atomic signed release pipeline | 📝 Approved 2026-09-14 — **not started**; protected fan-in release, manifest, CHANGELOG notes, checksums, and fail-closed publication are planned, not run |
 
 ## Decisions log
@@ -161,6 +164,8 @@ remain separate historical sign-off items.
 - **2026-09-14** — **Managed installer/release requirements approved; implementation not started.** Beginning with the version after v1.2.0, a signed per-machine Windows x64 MSI and signed/notarized/stapled macOS arm64/x86_64 PKGs replace standalone ZIPs as formal installation assets. Platform MCPBs remain separate required assets. Releases must be assembled atomically by one protected final job with checksums, a machine-readable release manifest, CHANGELOG-backed notes, silent install/version/upgrade/uninstall contracts, and preservation of per-user data. This supersedes future ZIP and deferred-signing plans, but preserves v1.2.0 as immutable history. No push, tag, or GitHub Release is authorized by this decision.
 
 - **2026-09-15** — **Unsigned native-installer test implementation added.** Added a repository-pinned WiX 4 x64/per-machine MSI generator, macOS arm64/x86_64 `pkgbuild` staging, guarded managed uninstall, canonical runtime `--version`, strict three-part native version validation, and clean-runner install/reinstall/uninstall checks. The build workflow is read-only and no longer creates Releases from tags. Production identities, signatures, notarization, stapling, final manifest/fan-in release, and formal release authorization remain blockers.
+
+- **2026-09-15** — **Unsigned installer lifecycle passed on all target architectures.** Actions run `34936179341` completed successfully: Windows x64 MSI, macOS arm64 PKG, and macOS x86_64 PKG each built from the full onedir payload, passed repeat installation, version/detection, managed uninstall, and user-data retention checks, and uploaded test artifacts. Filenames explicitly contain `unsigned-test-only`; this is not production signing or release evidence.
 
 ## Notes / gotchas discovered
 

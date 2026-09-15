@@ -6,7 +6,8 @@
 >   `onedir` standalone ZIP plus platform MCPB assets. It is historical and
 >   must not be modified, retagged, rebuilt in place, or republished.
 > - **Next release:** unsigned-test-only MSI/PKG build projects and lifecycle
->   harnesses now exist for `[Unreleased]`; clean CI evidence is pending. The
+>   harnesses now exist for `[Unreleased]`; clean CI lifecycle checks passed on
+>   Windows x64 and macOS arm64/x86_64. The
 >   production signing/notarization and atomic publication path is not yet
 >   implemented. This document does not assign a version after v1.2.0.
 > - Updating this contract does not mean an MSI, PKG, production signature,
