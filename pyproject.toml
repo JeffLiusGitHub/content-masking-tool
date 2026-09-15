@@ -22,7 +22,7 @@ dev = [
     "pytest-html>=4.1",
     "anyio>=4.0",
     "pyinstaller>=6.0",
-    "ruff>=0.6",
+    "ruff>=0.16.1",
     "mypy>=1.11",
 ]
 
