@@ -46,6 +46,7 @@ def generate(
     version: str,
     manufacturer: str,
     upgrade_code: str,
+    claude_extension_path: Path | None = None,
     product_name: str = "Content Masking Tool (Unsigned Test Only)",
 ) -> dict[str, object]:
     """Write WiX source and metadata, returning the metadata mapping."""
@@ -70,6 +71,15 @@ def generate(
         raise ValueError("payload directory is empty")
     if any(path.is_symlink() for path in files):
         raise ValueError("MSI payload must not contain symbolic links")
+
+    if claude_extension_path is not None:
+        claude_extension_path = claude_extension_path.resolve()
+        if not claude_extension_path.is_file():
+            raise ValueError(
+                f"Claude extension does not exist: {claude_extension_path}"
+            )
+        if claude_extension_path.suffix.casefold() != ".mcpb":
+            raise ValueError("Claude extension must be an .mcpb file")
 
     ET.register_namespace("", WIX_NAMESPACE)
     wix = ET.Element(_tag("Wix"))
@@ -166,6 +176,41 @@ def generate(
             },
         )
 
+    if claude_extension_path is not None:
+        extension_dir = ET.SubElement(
+            product_dir,
+            _tag("Directory"),
+            {"Id": "CLAUDEEXTENSIONFOLDER", "Name": "Claude Extension"},
+        )
+        extension_component_id = _stable_id(
+            "cmp", "claude-extension/content-masking-tool-win.mcpb"
+        )
+        component_ids.append(extension_component_id)
+        extension_component = ET.SubElement(
+            extension_dir,
+            _tag("Component"),
+            {
+                "Id": extension_component_id,
+                "Guid": _guid_text(
+                    uuid.uuid5(
+                        upgrade_uuid,
+                        "component/claude-extension/content-masking-tool-win.mcpb",
+                    )
+                ),
+                "Bitness": "always64",
+            },
+        )
+        ET.SubElement(
+            extension_component,
+            _tag("File"),
+            {
+                "Id": "ClaudeExtensionMcpb",
+                "Source": str(claude_extension_path),
+                "Name": "content-masking-tool-win.mcpb",
+                "KeyPath": "yes",
+            },
+        )
+
     feature = ET.SubElement(
         package,
         _tag("Feature"),
@@ -196,7 +241,13 @@ def generate(
         "managedUninstall": (
             f"msiexec /x {_guid_text(product_uuid)} /qn /norestart /log <uninstall-log>"
         ),
-        "payloadFileCount": len(files),
+        "payloadFileCount": len(files) + (1 if claude_extension_path else 0),
+        "claudeExtensionIncluded": claude_extension_path is not None,
+        "claudeExtensionPath": (
+            r"%ProgramFiles%\Content Masking Tool\Claude Extension\content-masking-tool-win.mcpb"
+            if claude_extension_path is not None
+            else None
+        ),
     }
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
@@ -211,6 +262,7 @@ def main() -> int:
     parser.add_argument("--version", required=True)
     parser.add_argument("--manufacturer", required=True)
     parser.add_argument("--upgrade-code", required=True)
+    parser.add_argument("--claude-extension", type=Path)
     args = parser.parse_args()
     generate(
         args.payload_dir,
@@ -219,6 +271,7 @@ def main() -> int:
         version=args.version,
         manufacturer=args.manufacturer,
         upgrade_code=args.upgrade_code,
+        claude_extension_path=args.claude_extension,
     )
     return 0
 

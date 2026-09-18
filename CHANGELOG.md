@@ -6,6 +6,13 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- A test-only Windows WiX 4 Burn guided setup prototype that installs the
+  complete application, stages the matching MCPB, and lets the user explicitly
+  open Claude Desktop's extension-install confirmation from the success page.
+  Silent setup does not edit Claude configuration or register the extension.
+
 ## [1.2.1-test.1] - 2026-09-16
 
 > Unsigned testing prerelease for Portal/MDM import and native installer

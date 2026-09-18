@@ -241,6 +241,9 @@ MDM-equivalent SYSTEM context where required.
 | WIN-009 | unsigned policy | PR builds may emit clearly labelled unsigned test-only MSI artifacts; a formal tag build fails when production signing is unavailable or invalid | Test path implemented — builder refuses non-test mode; formal signed workflow remains absent/fail-closed |
 | WIN-010 | MDM detection | Windows Installer registration by UpgradeCode/ProductCode, the expected installed three-part version, and the installed executable's exact `--version` result agree; detection does not invoke `Win32_Product` | Planned — not run |
 | WIN-011 | repair lifecycle | same-version silent repair remains x64/per-machine in SYSTEM context, returns a standard MSI result, restores only installer-owned program files, and preserves all per-user data sentinels | Planned — not run |
+| WIN-012 | guided setup layout | the Burn setup chains exactly one version-matched MSI, installs the full application and matching MCPB, exposes one bundle ARP entry, and hides the child MSI entry | Implemented locally; clean elevated CI lifecycle not yet run |
+| WIN-013 | Claude handoff | interactive success-page Launch opens the staged MCPB and leaves Claude Desktop to request explicit confirmation; quiet install neither edits Claude configuration nor claims extension registration | Source and metadata tests pass; interactive Claude confirmation not yet run |
+| WIN-014 | guided uninstall | quiet bundle uninstall removes installer-owned Program Files content and bundle/MSI registration while preserving `%APPDATA%\ContentMaskingTool\` sentinels | Harness implemented; clean elevated CI lifecycle not yet run |
 
 ### 9.3 macOS PKG, per architecture
 

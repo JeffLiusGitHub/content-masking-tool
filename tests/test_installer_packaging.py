@@ -22,6 +22,15 @@ PKG_SPEC = importlib.util.spec_from_file_location(
 assert PKG_SPEC and PKG_SPEC.loader
 PKG_MODULE = importlib.util.module_from_spec(PKG_SPEC)
 PKG_SPEC.loader.exec_module(PKG_MODULE)
+BOOTSTRAPPER_GENERATOR = (
+    ROOT / "packaging" / "bootstrapper" / "generate_bundle_wxs.py"
+)
+BOOTSTRAPPER_SPEC = importlib.util.spec_from_file_location(
+    "generate_bundle_wxs", BOOTSTRAPPER_GENERATOR
+)
+assert BOOTSTRAPPER_SPEC and BOOTSTRAPPER_SPEC.loader
+BOOTSTRAPPER_MODULE = importlib.util.module_from_spec(BOOTSTRAPPER_SPEC)
+BOOTSTRAPPER_SPEC.loader.exec_module(BOOTSTRAPPER_MODULE)
 
 
 def _payload(root: Path) -> Path:
@@ -78,6 +87,57 @@ def test_wix_source_requires_full_onedir(tmp_path: Path) -> None:
         )
 
 
+def test_wix_source_can_stage_claude_extension(tmp_path: Path) -> None:
+    extension = tmp_path / "content-masking-tool-win.mcpb"
+    extension.write_bytes(b"test-mcpb")
+    wxs = tmp_path / "with-extension.wxs"
+    metadata = tmp_path / "with-extension.json"
+
+    result = MODULE.generate(
+        _payload(tmp_path),
+        wxs,
+        metadata,
+        version="1.2.1",
+        manufacturer="UNSIGNED TEST ONLY",
+        upgrade_code="{E63074D2-2E07-5A50-A16C-8E5B94A6A94A}",
+        claude_extension_path=extension,
+    )
+
+    source = wxs.read_text(encoding="utf-8")
+    assert 'Id="CLAUDEEXTENSIONFOLDER"' in source
+    assert 'Name="content-masking-tool-win.mcpb"' in source
+    assert result["claudeExtensionIncluded"] is True
+    assert result["payloadFileCount"] == 4
+    assert result["claudeExtensionPath"].endswith("content-masking-tool-win.mcpb")
+
+
+def test_bootstrapper_opens_staged_mcpb_and_hides_child_msi(tmp_path: Path) -> None:
+    msi = tmp_path / "content-masking-tool-test.msi"
+    msi.write_bytes(b"test-msi")
+    first_wxs = tmp_path / "first-bundle.wxs"
+    first_metadata = tmp_path / "first-bundle.json"
+    second_wxs = tmp_path / "second-bundle.wxs"
+    second_metadata = tmp_path / "second-bundle.json"
+    kwargs = {
+        "version": "1.2.1",
+        "manufacturer": "UNSIGNED TEST ONLY",
+        "upgrade_code": "{9F7440DA-287A-5D3D-B937-D757302FF201}",
+    }
+
+    first = BOOTSTRAPPER_MODULE.generate(msi, first_wxs, first_metadata, **kwargs)
+    second = BOOTSTRAPPER_MODULE.generate(msi, second_wxs, second_metadata, **kwargs)
+
+    assert first == second
+    assert first_wxs.read_bytes() == second_wxs.read_bytes()
+    source = first_wxs.read_text(encoding="utf-8")
+    assert "WixStandardBootstrapperApplication" in source
+    assert "[ProgramFiles64Folder]Content Masking Tool" in source
+    assert "content-masking-tool-win.mcpb" in source
+    assert 'Visible="no"' in source
+    assert first["silentInstallRegistersClaudeExtension"] is False
+    assert "explicit user confirmation" in first["interactiveClaudeRegistration"]
+
+
 @pytest.mark.parametrize("version", ["1.2", "1.2.3.4", "256.0.0", "1.2.3-rc.1"])
 def test_wix_source_rejects_invalid_installer_versions(tmp_path: Path, version: str) -> None:
     with pytest.raises(ValueError, match="installer version"):
@@ -116,3 +176,15 @@ def test_windows_builder_refuses_unlabelled_formal_builds() -> None:
     assert "if (-not $TestOnly)" in build
     assert "Formal MSI creation is disabled" in build
     assert "unsigned-test-only" in build
+
+
+def test_windows_bootstrapper_requires_test_mode_and_mcpb_enabled_msi() -> None:
+    build = (
+        ROOT / "packaging" / "bootstrapper" / "build_windows_bootstrapper.ps1"
+    ).read_text()
+
+    assert "if (-not $TestOnly)" in build
+    assert "Formal bootstrapper creation is disabled" in build
+    assert "claudeExtensionIncluded" in build
+    assert "WixToolset.Bal.wixext/4.0.6" in build
+    assert "self-signed-test-only" in build

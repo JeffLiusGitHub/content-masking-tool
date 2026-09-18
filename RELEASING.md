@@ -1,6 +1,6 @@
 # Release packaging and distribution
 
-> **Status as of 2026-09-15**
+> **Status as of 2026-09-18**
 >
 > - **Released baseline:** v1.2.0 remains the existing unsigned PyInstaller
 >   `onedir` standalone ZIP plus platform MCPB assets. It is historical and
@@ -169,7 +169,10 @@ The first formal release after v1.2.0 MUST provide:
 
 MCPB is the Claude Desktop extension format and remains a separate deliverable.
 MSI/PKG replace only formal standalone ZIP assets; native installers MUST NOT
-silently install, remove, or absorb the MCPB distribution path. Standalone ZIPs
+silently register or remove the MCPB extension, and MUST NOT replace its
+separate release asset. A guided installer MAY stage the byte-identical MCPB
+and expose a user-invoked handoff to Claude Desktop, provided Claude retains
+its own explicit installation confirmation. Standalone ZIPs
 MAY remain clearly labelled test/debug Actions artifacts, but MUST NOT appear
 on a formal GitHub Release after v1.2.0.
 
@@ -367,6 +370,34 @@ Replace `1.2.0` with the synchronized project version after it is formally
 assigned. The second command refuses to run without `-TestOnly`; its temporary
 Manufacturer and UpgradeCode are deliberately not production identities. A
 passing WiX compile or lifecycle test is not signing evidence.
+
+### Windows guided-setup prototype
+
+`packaging/bootstrapper/` contains a WiX 4 Burn prototype that chains the
+test-only MSI into one setup executable. The MSI may include the matching
+Windows MCPB at `%ProgramFiles%\Content Masking Tool\Claude Extension\`.
+After an interactive install, the success-page Launch action opens that file
+so Claude Desktop can request explicit extension-install confirmation. Quiet
+installation only lays down the application and staged MCPB; it MUST NOT be
+reported as Claude extension registration.
+
+The prototype deliberately hides its chained MSI from Add/Remove Programs so
+the Burn bundle owns the single uninstall entry. Its lifecycle harness checks
+installed version, application and MCPB layout, bundle registration, child-MSI
+hiding, managed uninstall, and per-user data retention. Build it after the
+Windows frozen payload and MCPB exist:
+
+```powershell
+packaging/msi/build_windows_msi.ps1 `
+  -ClaudeExtensionPath dist/content-masking-tool-win.mcpb `
+  -TestOnly
+packaging/bootstrapper/build_windows_bootstrapper.ps1 -TestOnly
+```
+
+This is not a formal publishing path. Its temporary Manufacturer and bundle
+UpgradeCode are test identities, an optional self-signed certificate is not a
+production identity, and the clean elevated lifecycle must pass in CI before
+the artifact is treated as verified even for testing.
 
 ## macOS PKG contract
 

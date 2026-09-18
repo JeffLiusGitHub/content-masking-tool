@@ -47,7 +47,10 @@ jobs:
 
       - name: Build unsigned test MSI
         shell: pwsh
-        run: packaging/msi/build_windows_msi.ps1 -TestOnly
+        run: |
+          packaging/msi/build_windows_msi.ps1 `
+            -ClaudeExtensionPath dist/content-masking-tool-win.mcpb `
+            -TestOnly
 
       - name: Test MSI install, reinstall, and uninstall
         shell: pwsh
@@ -61,6 +64,25 @@ jobs:
             -MsiPath $msi[0].FullName `
             -MetadataPath $metadata[0].FullName
 
+      - name: Build unsigned test setup guide
+        shell: pwsh
+        run: packaging/bootstrapper/build_windows_bootstrapper.ps1 -TestOnly
+
+      - name: Test setup guide install and uninstall
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.exe)
+          $setupMetadata = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.json)
+          $msiMetadata = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-unsigned-test-only.json |
+            Where-Object { $_.Name -notlike '*bootstrapper*' })
+          if ($setup.Count -ne 1 -or $setupMetadata.Count -ne 1 -or $msiMetadata.Count -ne 1) {
+            throw "Expected exactly one setup guide and its metadata"
+          }
+          packaging/bootstrapper/test_windows_bootstrapper.ps1 `
+            -SetupPath $setup[0].FullName `
+            -MetadataPath $setupMetadata[0].FullName `
+            -MsiMetadataPath $msiMetadata[0].FullName
+
       - name: Upload Windows test artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -71,6 +93,8 @@ jobs:
             dist/SHA256SUMS-windows.txt
             dist/content-masking-tool-windows-x64-*-unsigned-test-only.msi
             dist/content-masking-tool-windows-x64-*-unsigned-test-only.json
+            dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.exe
+            dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.json
           if-no-files-found: error
 
   build-macos:

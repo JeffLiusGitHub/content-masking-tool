@@ -1,5 +1,6 @@
 param(
     [string]$PayloadDir,
+    [string]$ClaudeExtensionPath,
     [string]$Version,
     [string]$OutputDir,
     [switch]$TestOnly
@@ -52,13 +53,23 @@ $msi = Join-Path $OutputDir "content-masking-tool-windows-x64-$Version-unsigned-
 $testManufacturer = "UNSIGNED TEST ONLY - Content Masking Tool"
 $testUpgradeCode = "{E63074D2-2E07-5A50-A16C-8E5B94A6A94A}"
 
-& $python (Join-Path $PSScriptRoot "generate_wxs.py") `
-    --payload-dir $PayloadDir `
-    --output $wxs `
-    --metadata $metadata `
-    --version $Version `
-    --manufacturer $testManufacturer `
-    --upgrade-code $testUpgradeCode
+$generatorArgs = @(
+    (Join-Path $PSScriptRoot "generate_wxs.py"),
+    "--payload-dir", $PayloadDir,
+    "--output", $wxs,
+    "--metadata", $metadata,
+    "--version", $Version,
+    "--manufacturer", $testManufacturer,
+    "--upgrade-code", $testUpgradeCode
+)
+if ($ClaudeExtensionPath) {
+    if (-not (Test-Path -LiteralPath $ClaudeExtensionPath -PathType Leaf)) {
+        throw "Claude extension not found: $ClaudeExtensionPath"
+    }
+    $generatorArgs += @("--claude-extension", $ClaudeExtensionPath)
+}
+
+& $python @generatorArgs
 if ($LASTEXITCODE -ne 0) { throw "WiX source generation failed" }
 
 Push-Location -LiteralPath $root

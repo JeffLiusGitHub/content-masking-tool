@@ -100,6 +100,15 @@ formal release packages**. No next version number or production signing identity
 [RELEASING.md](RELEASING.md) for the normative contract and
 [TESTPLAN.md](TESTPLAN.md) for the planned acceptance matrix.
 
+An experimental Windows guided setup is also available to build from source.
+It installs the complete x64 `onedir` application under Program Files, stages
+the matching Windows MCPB under `Claude Extension`, and offers a **Launch**
+button on the success page. Launching opens that MCPB through Windows so Claude
+Desktop can display its own extension-install confirmation. The setup never
+edits Claude configuration or silently registers the extension; `/quiet`
+installs only the application and staged MCPB. This bootstrapper is currently
+test-only and is not a production release asset.
+
 > **v1.2.0 binaries come from its tagged release.** The current [`build`](../../actions/workflows/build.yml) workflow uploads test artifacts only and never creates or changes a GitHub Release. Its MSI/PKG filenames contain `unsigned-test-only`; do not treat Actions artifacts as signed production installers.
 
 **v1.2.0 end users (Windows, no Python needed):**
@@ -324,6 +333,12 @@ x64、macOS arm64 和 macOS x86_64 的干净 CI 上通过生命周期检查，�
 正式 Release 安装包**。下一版本号和
 正式签名身份也尚未确定。规范性契约见 [RELEASING.md](RELEASING.md)，验收矩阵见
 [TESTPLAN.md](TESTPLAN.md)。
+
+仓库现在还提供一个实验性的 Windows 安装引导器源码。它把完整的 x64 `onedir`
+程序安装到 Program Files，把同版本 Windows MCPB 暂存到 `Claude Extension` 目录，
+并在安装成功页提供 **Launch** 按钮。点击后由 Windows 打开该 MCPB，再由 Claude
+Desktop 显示自己的扩展安装确认。引导器不会修改 Claude 配置或静默注册扩展；
+`/quiet` 只安装主程序并暂存 MCPB。该引导器目前仅供测试，不是正式 Release 资产。
 
 > **v1.2.0 二进制来自对应的标签 Release。** 当前 [`build`](../../actions/workflows/build.yml) workflow 只上传测试 artifact，绝不会创建或修改 GitHub Release。MSI/PKG 文件名明确包含 `unsigned-test-only`；不要把 Actions artifact 当成已签名的正式安装包。
 
