@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "content-masking-tool",
   "display_name": "Content Masking Tool",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Masks people/company names in local documents before their content reaches the AI, and restores them on request. Every mask request requires human approval in a local review window before any content enters the conversation. Fully local: detection (deny-list + built-in NER model), token vault, review, and restore all run on this machine. No fixed name list ships in the package — add names via the editable CSV in app data; random names are caught by the bundled NER model.",
   "author": {
     "name": "Jeff Liu"

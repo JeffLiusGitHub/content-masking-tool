@@ -68,6 +68,36 @@ jobs:
         shell: pwsh
         run: packaging/bootstrapper/build_windows_bootstrapper.ps1 -TestOnly
 
+      - name: Test upgrade from v1.2.1-test.2 and preserve settings
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $oldDir = Join-Path $env:RUNNER_TEMP 'content-masking-tool-v1.2.1-test.2'
+          New-Item -ItemType Directory -Force -Path $oldDir | Out-Null
+          gh release download v1.2.1-test.2 `
+            --pattern 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.exe' `
+            --pattern 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.json' `
+            --pattern 'content-masking-tool-windows-x64-1.2.1-unsigned-test-only.json' `
+            --dir $oldDir
+          if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
+
+          $newSetup = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.exe)
+          $newSetupMetadata = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-bootstrapper-unsigned-test-only.json)
+          $newMsiMetadata = @(Get-ChildItem dist/content-masking-tool-windows-x64-*-unsigned-test-only.json |
+            Where-Object { $_.Name -notlike '*bootstrapper*' })
+          if ($newSetup.Count -ne 1 -or $newSetupMetadata.Count -ne 1 -or $newMsiMetadata.Count -ne 1) {
+            throw 'Expected exactly one new setup and matching metadata files'
+          }
+
+          packaging/bootstrapper/test_windows_upgrade.ps1 `
+            -OldSetupPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.exe') `
+            -OldMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.json') `
+            -OldMsiMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-unsigned-test-only.json') `
+            -NewSetupPath $newSetup[0].FullName `
+            -NewMetadataPath $newSetupMetadata[0].FullName `
+            -NewMsiMetadataPath $newMsiMetadata[0].FullName
+
       - name: Test setup guide install and uninstall
         shell: pwsh
         run: |

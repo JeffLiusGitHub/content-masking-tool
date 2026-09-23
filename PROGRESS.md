@@ -2,7 +2,7 @@
 
 > Plan: [CLAUDE.md](CLAUDE.md) · Test plan & TDD workflow: [TESTPLAN.md](TESTPLAN.md) · Test evidence: [Test result/README.md](Test%20result/README.md). Update this file as milestones complete.
 
-**Last updated:** 2026-09-18
+**Last updated:** 2026-09-23
 
 ## Current status
 
@@ -168,6 +168,8 @@ remain separate historical sign-off items.
 - **2026-09-15** — **Unsigned installer lifecycle passed on all target architectures.** Actions run `34936179341` completed successfully: Windows x64 MSI, macOS arm64 PKG, and macOS x86_64 PKG each built from the full onedir payload, passed repeat installation, version/detection, managed uninstall, and user-data retention checks, and uploaded test artifacts. Filenames explicitly contain `unsigned-test-only`; this is not production signing or release evidence.
 
 - **2026-09-18** — **Windows guided-setup prototype implemented locally.** Added a WiX 4 Burn setup that chains the test-only MSI, stages the matching Windows MCPB under Program Files, and offers an explicit success-page handoff to Claude Desktop. Quiet installation does not register the extension or edit Claude configuration. Generator tests pass, and a real v1.2.1 test setup was built with the existing self-signed test certificate and RFC 3161 timestamp; that identity is untrusted and is not production signing. The clean elevated bundle lifecycle and interactive Claude confirmation have not yet run in CI, and this branch has not been pushed or released.
+
+- **2026-09-23** — **Cross-version Windows upgrade acceptance added for v1.2.2-test.3.** The test installs the published v1.2.1-test.2 guided setup, upgrades to the new 1.2.2 build using the same MSI and Burn UpgradeCodes with new product identity, and verifies exact settings/Vault retention through upgrade and managed uninstall. CI evidence is pending; this remains an unsigned test prerelease path.
 
 ## Notes / gotchas discovered
 

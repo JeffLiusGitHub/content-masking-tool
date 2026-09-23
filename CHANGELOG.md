@@ -6,6 +6,29 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.2-test.3] - 2026-09-23
+
+> Unsigned testing prerelease for validating an in-place upgrade from
+> `v1.2.1-test.2`. It is not a production-signed release.
+
+### Added
+
+- A clean-runner Windows upgrade test that installs the previous guided setup,
+  upgrades it to 1.2.2, verifies the MSI and Burn identities, and proves that
+  `settings.json`, Vault data, and the rest of the per-user application-data
+  root remain unchanged through upgrade and uninstall.
+
+### Changed
+
+- Synchronized the application, frozen version probe, and Windows/macOS MCPB
+  metadata at 1.2.2 so the native installers exercise a real version upgrade
+  instead of a same-version repair.
+
+## [1.2.1-test.2] - 2026-09-22
+
+> Unsigned testing prerelease for the Windows guided setup. It is not a
+> production-signed release.
+
 ### Added
 
 - A test-only Windows WiX 4 Burn guided setup prototype that installs the
@@ -78,6 +101,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Builds remain unsigned; macOS Gatekeeper / Windows SmartScreen prompts are
   expected. Signing and notarization are planned next.
 
-[Unreleased]: https://github.com/JeffLiusGitHub/content-masking-tool/compare/v1.2.1-test.1...HEAD
+[Unreleased]: https://github.com/JeffLiusGitHub/content-masking-tool/compare/v1.2.2-test.3...HEAD
+[1.2.2-test.3]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.2-test.3
+[1.2.1-test.2]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.1-test.2
 [1.2.1-test.1]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.1-test.1
 [1.2.0]: https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.2.0

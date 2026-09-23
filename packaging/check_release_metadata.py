@@ -25,6 +25,9 @@ EXPECTED_TOOLS = (
 )
 EXPECTED_LICENSE = "AGPL-3.0-only"
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+TEST_TAG_RE = re.compile(
+    r"^(?P<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))-test\.[1-9]\d*$"
+)
 MSI_VERSION_LIMITS = (255, 255, 65535)
 
 
@@ -91,7 +94,9 @@ def validate_release_metadata(expected_version: str | None = None) -> tuple[str,
 
     if expected_version:
         normalized = expected_version.removeprefix("v")
-        if normalized != project_version:
+        test_tag = TEST_TAG_RE.fullmatch(normalized)
+        compared_version = test_tag.group("version") if test_tag else normalized
+        if compared_version != project_version:
             errors.append(
                 f"release version {expected_version!r} does not match "
                 f"pyproject version {project_version!r}"

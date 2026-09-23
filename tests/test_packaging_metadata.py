@@ -48,6 +48,24 @@ def test_release_metadata_rejects_a_mismatched_tag() -> None:
     assert "does not match pyproject version" in result.stderr
 
 
+def test_release_metadata_accepts_test_tag_for_native_base_version() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CHECKER),
+            "--expected-version",
+            "v1.2.2-test.3",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Release metadata OK: v1.2.2" in result.stdout
+
+
 @pytest.mark.parametrize(
     "version",
     ["1.2", "1.2.3.4", "01.2.3", "1.02.3", "1.2.03", "1.2.3-rc.1", "1.2.3+build"],

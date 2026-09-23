@@ -111,6 +111,33 @@ def test_wix_source_can_stage_claude_extension(tmp_path: Path) -> None:
     assert result["claudeExtensionPath"].endswith("content-masking-tool-win.mcpb")
 
 
+def test_wix_major_upgrade_keeps_upgrade_code_and_changes_product_code(
+    tmp_path: Path,
+) -> None:
+    payload = _payload(tmp_path)
+    upgrade_code = "{E63074D2-2E07-5A50-A16C-8E5B94A6A94A}"
+    old = MODULE.generate(
+        payload,
+        tmp_path / "old.wxs",
+        tmp_path / "old.json",
+        version="1.2.1",
+        manufacturer="UNSIGNED TEST ONLY",
+        upgrade_code=upgrade_code,
+    )
+    new = MODULE.generate(
+        payload,
+        tmp_path / "new.wxs",
+        tmp_path / "new.json",
+        version="1.2.2",
+        manufacturer="UNSIGNED TEST ONLY",
+        upgrade_code=upgrade_code,
+    )
+
+    assert old["upgradeCode"] == new["upgradeCode"] == upgrade_code
+    assert old["productCode"] != new["productCode"]
+    assert 'MajorUpgrade' in (tmp_path / "new.wxs").read_text(encoding="utf-8")
+
+
 def test_bootstrapper_opens_staged_mcpb_and_hides_child_msi(tmp_path: Path) -> None:
     msi = tmp_path / "content-masking-tool-test.msi"
     msi.write_bytes(b"test-msi")
@@ -188,3 +215,17 @@ def test_windows_bootstrapper_requires_test_mode_and_mcpb_enabled_msi() -> None:
     assert "claudeExtensionIncluded" in build
     assert "WixToolset.Bal.wixext/4.0.6" in build
     assert "self-signed-test-only" in build
+
+
+def test_windows_upgrade_acceptance_preserves_settings_and_stable_identity() -> None:
+    upgrade = (
+        ROOT / "packaging" / "bootstrapper" / "test_windows_upgrade.ps1"
+    ).read_text()
+
+    assert "bundleUpgradeCode" in upgrade
+    assert "upgradeCode" in upgrade
+    assert "productCode" in upgrade
+    assert "settings.json changed during upgrade" in upgrade
+    assert "Vault sentinel changed during upgrade" in upgrade
+    assert "Old MSI ProductCode remains registered" in upgrade
+    assert "clean runner with no existing settings.json" in upgrade
