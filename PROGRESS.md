@@ -6,6 +6,30 @@
 
 ## Current status
 
+**v1.3.0-rc.1 published (2026-09-30):** The maintainer-authorized
+[unsigned testing prerelease](https://github.com/JeffLiusGitHub/content-masking-tool/releases/tag/v1.3.0-rc.1)
+is public, with 19 verified assets. Main and the immutable release tag contain
+source commit `97b966214dd2108bbae6b7b07f6dae50a9961c2b`; this status update is a
+subsequent documentation-only change. All 226 source tests passed on Windows
+x64, macOS arm64 and macOS x86_64. The
+[build matrix](https://github.com/JeffLiusGitHub/content-masking-tool/actions/runs/36656294419)
+passed frozen MCP/HTML/URL/TEXT/restore and GUI approval-gate smoke, all native
+installer lifecycle checks, guided Windows setup, and upgrade from
+v1.2.2-test.3 with per-user data preservation.
+[Checks](https://github.com/JeffLiusGitHub/content-masking-tool/actions/runs/36656294493)
+and [CodeQL](https://github.com/JeffLiusGitHub/content-masking-tool/actions/runs/36656297710)
+also passed at that exact commit. Every published asset's GitHub-reported size
+and SHA-256 matches the local verified package; the release includes an
+aggregate checksum file and source/build provenance manifest. Published
+platform checksum files use portable filenames instead of CI absolute paths.
+
+The release remains a prerelease, and Latest remains the unchanged v1.2.0.
+Packages are unsigned test-only, macOS notarization is not claimed, and
+enterprise IE laptop/customer discovery schedule acceptance remains pending.
+Intel macOS uses Choose file when its optional native drag-and-drop extension
+cannot load. The original red/green layout and smart blue token selection are
+included. Earlier preparation results below are historical.
+
 **v1.3.0-rc.1 testing prerelease preparation (2026-09-30):** The maintainer
 authorized publishing unsigned test packages. Review enhancements are integrated
 on the latest main base, retaining the existing Windows guided setup and
