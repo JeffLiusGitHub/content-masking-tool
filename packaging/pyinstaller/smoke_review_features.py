@@ -73,7 +73,7 @@ def main(executable):
                 deadline = time.monotonic() + 60
                 while time.monotonic() < deadline:
                     if proc.poll() is not None:
-                        raise RuntimeError("Frozen GUI exited before startup completed")
+                        raise RuntimeError(f"Frozen GUI exited before startup completed (exit {proc.returncode})")
                     if json.loads(record.read_text(encoding="utf-8")).get("gui_pid"):
                         break
                     time.sleep(0.1)
@@ -83,6 +83,14 @@ def main(executable):
                 assert proc.poll() is None
                 assert json.loads(record.read_text(encoding="utf-8"))["status"] == "waiting_for_user"
                 assert not list((root / "masked").glob("*.md"))
+            except Exception:
+                # This log belongs only to the isolated synthetic smoke fixture.
+                # Preserve child diagnostics in CI instead of losing them when
+                # TemporaryDirectory cleans up after a startup failure.
+                log.flush()
+                print((root / "gui.log").read_text(encoding="utf-8", errors="replace"),
+                      file=sys.stderr, flush=True)
+                raise
             finally:
                 if proc.poll() is None:
                     proc.terminate()
