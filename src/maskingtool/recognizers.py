@@ -34,7 +34,7 @@ def expand_person_name_parts(terms: list[str]) -> list[str]:
     expanded = list(terms)
     seen = set(terms)
     for term in terms:
-        if _CJK.search(term):
+        if _CJK.search(term) or "\n" in term or "\r" in term:
             continue
         for part in term.split():
             if len(part) >= MIN_PART_LEN and part not in seen:
@@ -47,7 +47,12 @@ def _term_regex(term: str) -> str:
     escaped = re.escape(term)
     if _CJK.search(term):
         return escaped
-    return rf"(?<!\w){escaped}(?!\w)"
+    # Guards apply to word edges, not to explicit whitespace/punctuation in a
+    # selected block. Otherwise an allow containing surrounding spaces would
+    # incorrectly fail between two ordinary words.
+    left = r"(?<!\w)" if re.match(r"\w", term[0]) else ""
+    right = r"(?!\w)" if re.match(r"\w", term[-1]) else ""
+    return left + escaped + right
 
 
 def build_denylist_recognizers(
@@ -60,7 +65,7 @@ def build_denylist_recognizers(
     """
     recognizers = []
     for entity_type, terms in deny_lists.items():
-        terms = [t.strip() for t in terms if t and t.strip()]
+        terms = [t for t in terms if t and t.strip()]
         if not terms:
             continue
         alternation = "|".join(

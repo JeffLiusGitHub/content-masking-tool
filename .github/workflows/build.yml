@@ -68,17 +68,17 @@ jobs:
         shell: pwsh
         run: packaging/bootstrapper/build_windows_bootstrapper.ps1 -TestOnly
 
-      - name: Test upgrade from v1.2.1-test.2 and preserve settings
+      - name: Test upgrade from v1.2.2-test.3 and preserve settings
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $oldDir = Join-Path $env:RUNNER_TEMP 'content-masking-tool-v1.2.1-test.2'
+          $oldDir = Join-Path $env:RUNNER_TEMP 'content-masking-tool-v1.2.2-test.3'
           New-Item -ItemType Directory -Force -Path $oldDir | Out-Null
-          gh release download v1.2.1-test.2 `
-            --pattern 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.exe' `
-            --pattern 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.json' `
-            --pattern 'content-masking-tool-windows-x64-1.2.1-unsigned-test-only.json' `
+          gh release download v1.2.2-test.3 `
+            --pattern 'content-masking-tool-windows-x64-1.2.2-bootstrapper-unsigned-test-only.exe' `
+            --pattern 'content-masking-tool-windows-x64-1.2.2-bootstrapper-unsigned-test-only.json' `
+            --pattern 'content-masking-tool-windows-x64-1.2.2-unsigned-test-only.json' `
             --dir $oldDir
           if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
 

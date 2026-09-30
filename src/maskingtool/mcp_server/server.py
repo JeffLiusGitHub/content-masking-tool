@@ -22,7 +22,7 @@ from maskingtool.mcp_server.schemas import (
 mcp = FastMCP(
     "content-masking-tool",
     instructions=(
-        "Masks company/people names in local documents with MANDATORY human "
+        "Masks company/people names and URLs in local documents with MANDATORY human "
         "review before any content enters the conversation. Flow: "
         "mask_document(file) opens a review window and returns a review_id "
         "immediately -> tell the user to review/confirm in the window, then "
@@ -35,7 +35,7 @@ mcp = FastMCP(
         "automatically -> restore via "
         "restore_document (writes locally; preferred) or restore_text (puts "
         "real names into the conversation) using that vault_id. MANDATORY: "
-        "never read a .pdf/.docx/.doc/.md document's content directly by any "
+        "never read a .pdf/.docx/.doc/.md/.html/.htm document's content directly by any "
         "other means (file tools, shell commands); there is NO way to obtain "
         "document content without the user's review approval."
     ),
@@ -44,7 +44,7 @@ mcp = FastMCP(
 
 @mcp.tool()
 def mask_document(file_path: str) -> MaskReviewStarted:
-    """Start masking a local document (.md/.txt/.docx/.pdf) with MANDATORY
+    """Start masking a local document (.md/.txt/.html/.htm/.docx/.pdf) with MANDATORY
     human review: a review window opens on the user's screen and this call
     returns immediately with a review_id. No masked content is available
     until the user confirms in the window. Tell the user to review and

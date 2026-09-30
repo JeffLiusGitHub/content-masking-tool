@@ -6,6 +6,34 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0-rc.1] - 2026-09-30
+
+> Maintainer-authorized unsigned testing prerelease. Native application and
+> installer version: 1.3.0. This is not a production-signed release.
+
+### Added
+
+- Click-to-select masking tokens with persistent blue selection highlighting;
+  partial mouse/keyboard selections expand to whole tokens before explicit actions.
+- HTML/HTM input with offline semantic conversion and rectangular tables;
+  automatic HTTP/HTTPS/www URL masking with `URL` tokens; multiline manual
+  masking with URL and Text categories.
+- Source-mapped red/green diff review (original layout restored), selective unmasking,
+  persistent allow rules and local deny/allow list management. Direct deny-list
+  removals have review-only exceptions; other unmask actions persist allows.
+- Locked, rollback-capable rule edits and source/frozen regression coverage.
+
+### Fixed
+
+- Canonical DOCX table previews concatenate adjacent formatting runs without
+  inserting spaces that could defeat exact deny-list matches.
+- Selecting a partially masked URL now resolves the selection to the original
+  source instead of persisting token text as an ineffective deny-list term.
+- Preview edits retain token identities, require confirmation after previous
+  output creation, and count only currently used tokens.
+- HTML restoration escapes original values and retains restorable URL tokens
+  in link destinations, including semantically escaped source text.
+
 ## [1.2.2-test.3] - 2026-09-23
 
 > Unsigned testing prerelease for validating an in-place upgrade from

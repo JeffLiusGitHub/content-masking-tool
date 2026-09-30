@@ -7,17 +7,18 @@ pdf extraction (M6).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import html
 from pathlib import Path
 
 from maskingtool.engine import MaskingEngine
 from maskingtool.operators import restore_text
-from maskingtool.parsers.markdown_parser import parse_markdown
 from maskingtool.renderers.html_renderer import render_html
-from maskingtool.renderers.markdown_renderer import render_masked_markdown
 from maskingtool.textio import read_text_exact, write_text_exact
 from maskingtool.vault import Vault
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".txt"}
+HTML_SUFFIXES = {".html", ".htm"}
+MASK_INPUT_SUFFIXES = MARKDOWN_SUFFIXES | HTML_SUFFIXES | {".docx", ".pdf"}
 
 
 class UnsupportedFormatError(Exception):
@@ -34,29 +35,34 @@ class MaskResult:
     warnings: list[str] = field(default_factory=list)
 
 
+def read_document(path: Path) -> tuple[str, list[str]]:
+    """Canonical review text, also used verbatim as the engine's input."""
+    suffix = path.suffix.lower()
+    if suffix in MARKDOWN_SUFFIXES:
+        return read_text_exact(path), []
+    if suffix in HTML_SUFFIXES:
+        from maskingtool.parsers.html_parser import parse_html
+        return parse_html(path)
+    if suffix == ".docx":
+        from maskingtool.parsers.docx_parser import parse_docx, render_markdown_from_docx
+        parsed = parse_docx(path)
+        return render_markdown_from_docx(parsed, [s.text for s in parsed.spanned.spans]), []
+    if suffix == ".pdf":
+        from maskingtool.parsers.pdf_parser import parse_pdf
+        spanned, warnings = parse_pdf(path)
+        pages = [s.text for s in spanned.spans if s.source_ref is not None]
+        return "\n\n".join(pages) + "\n", warnings
+    raise UnsupportedFormatError(suffix, ", ".join(sorted(MASK_INPUT_SUFFIXES)))
+
+
 def mask_file(
     path: Path,
     engine: MaskingEngine,
     vault: Vault,
     output_format: str = "markdown",
 ) -> MaskResult:
-    suffix = path.suffix.lower()
-    if suffix in MARKDOWN_SUFFIXES:
-        source = read_text_exact(path)
-        spanned = parse_markdown(source)
-        new_texts = engine.mask_spanned(spanned, vault)
-        masked_md = render_masked_markdown(source, spanned, new_texts)
-        warnings: list[str] = []
-    elif suffix == ".docx":
-        from maskingtool.parsers.docx_parser import mask_docx_to_markdown
-
-        masked_md, warnings = mask_docx_to_markdown(path, engine, vault)
-    elif suffix == ".pdf":
-        from maskingtool.parsers.pdf_parser import mask_pdf_to_markdown
-
-        masked_md, warnings = mask_pdf_to_markdown(path, engine, vault)
-    else:
-        raise UnsupportedFormatError(suffix, ".md, .markdown, .txt, .docx, .pdf")
+    source, warnings = read_document(path)
+    masked_md = engine.mask_text(source, vault, html_source=path.suffix.lower() in HTML_SUFFIXES)
 
     if output_format == "html":
         return MaskResult(render_html(masked_md), "html", warnings)
@@ -73,7 +79,22 @@ def restore_file(
 
         return restore_docx(path, vault, output_path)
     if suffix in MARKDOWN_SUFFIXES | {".html", ".htm"}:
-        restored, unresolved = restore_text(read_text_exact(path), vault)
+        source = read_text_exact(path)
+        if suffix in HTML_SUFFIXES:
+            # Tokens may occur in text or quoted attributes. Escape originals
+            # rather than allowing restored names/URLs to become HTML markup.
+            from maskingtool.vault import TOKEN_PATTERN
+            unresolved = []
+            def replace(match):
+                original = vault.resolve_html(match.group())
+                if original is None:
+                    if match.group() not in unresolved:
+                        unresolved.append(match.group())
+                    return match.group()
+                return html.escape(original, quote=True)
+            restored = TOKEN_PATTERN.sub(replace, source)
+        else:
+            restored, unresolved = restore_text(source, vault)
         write_text_exact(output_path, restored)
         return unresolved
     raise UnsupportedFormatError(suffix, ".md, .markdown, .txt, .html, .docx")

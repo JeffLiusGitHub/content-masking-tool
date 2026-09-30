@@ -85,7 +85,10 @@ def pid_alive(pid: int) -> bool:
 
 
 def create_review(file_path: Path) -> dict:
-    review_id = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
+    # Keep the timestamp readable without creating one 14-digit run after
+    # punctuation is removed. A timestamp-only id can coincidentally pass Luhn
+    # and be rejected as a credit-card number by an upstream DLP gateway.
+    review_id = f"rvw_{datetime.now():%Y%m%dT%H%M%S}_{uuid.uuid4().hex[:8]}"
     data = {
         "review_id": review_id,
         "status": "waiting_for_user",

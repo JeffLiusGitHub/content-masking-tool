@@ -5,15 +5,17 @@ import difflib
 import json
 import os
 import tempfile
+import copy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from maskingtool import config
 from maskingtool.denylist.loader import load_deny_lists
+from maskingtool.denylist import loader
 from maskingtool.engine import MaskingEngine
-from maskingtool.pipeline import MARKDOWN_SUFFIXES, mask_file, restore_file
-from maskingtool.textio import read_text_exact, write_text_exact
+from maskingtool.pipeline import read_document, restore_file, HTML_SUFFIXES
+from maskingtool.textio import write_text_exact
 from maskingtool.vault import TOKEN_PATTERN, Vault
 
 
@@ -135,16 +137,7 @@ def diff_lines(before: str, after: str) -> list[tuple[str, str]]:
 
 
 def readable_text(path: Path) -> str:
-    suffix = path.suffix.lower()
-    if suffix in MARKDOWN_SUFFIXES | {".html", ".htm"}:
-        return read_text_exact(path)
-    if suffix == ".docx":
-        from maskingtool.parsers.docx_parser import parse_docx
-        return parse_docx(path).spanned.text
-    if suffix == ".pdf":
-        from maskingtool.parsers.pdf_parser import parse_pdf
-        return parse_pdf(path)[0].text
-    raise ValueError(f"Unsupported file type: {suffix}")
+    return read_document(path)[0]
 
 
 @dataclass
@@ -168,6 +161,7 @@ class MaskPreview:
     output_format: str
     warnings: list[str]
     before_text: str
+    temporary_allow: set[str] = field(default_factory=set)
 
 
 def detect_file_action(path: Path, history: HistoryStore | None = None) -> str:
@@ -178,21 +172,61 @@ def detect_file_action(path: Path, history: HistoryStore | None = None) -> str:
     return "restore" if TOKEN_PATTERN.search(readable_text(path)) else "mask"
 
 
-def prepare_mask_preview(path: Path, *, vaults_dir: Path | None = None) -> MaskPreview:
+def prepare_mask_preview(path: Path, *, vaults_dir: Path | None = None,
+                         vault: Vault | None = None, temporary_allow=None) -> MaskPreview:
     """Compute a mask preview without writing output, vault, or history."""
     path = Path(path).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(path)
-    before = readable_text(path)
+    before, warnings = read_document(path)
     settings = config.load_settings()
-    engine = MaskingEngine(load_deny_lists(), enable_ner=settings["enable_ner"],
-                           expand_person_parts=settings["expand_person_name_parts"])
-    vault = Vault.create(path.name, vaults_dir=vaults_dir)
-    result = mask_file(path, engine, vault, output_format="markdown")
+    temporary = set(temporary_allow or ())
+    with loader.rule_transaction():
+        engine = MaskingEngine(load_deny_lists(), enable_ner=settings["enable_ner"],
+                               expand_person_parts=settings["expand_person_name_parts"],
+                               manual_terms=loader.load_manual_terms(),
+                               allow_terms=loader.load_allow_terms() + list(temporary))
+        vault = copy.deepcopy(vault) if vault is not None else Vault.create(path.name, vaults_dir=vaults_dir)
+        masked = engine.mask_text(before, vault, html_source=path.suffix.lower() in HTML_SUFFIXES)
     proposed = next_available_path(
         config.get_masked_output_dir() / (path.stem + ".masked.md"))
-    return MaskPreview(path, proposed, vault, result.masked_text,
-                       result.output_format, result.warnings, before)
+    return MaskPreview(path, proposed, vault, masked, "markdown", warnings, before, temporary)
+
+
+def edit_preview(preview, *, term=None, entity_type=None, undo=None, remove_rule=None):
+    """Persist rules only if a complete replacement preview can be computed."""
+    temporary = set(preview.temporary_allow)
+    if preview.input_path.suffix.lower() in HTML_SUFFIXES:
+        from maskingtool.markup import semantic_view
+        if term is not None:
+            term = semantic_view(term)[0]
+        if undo is not None:
+            undo = [semantic_view(value)[0] for value in undo]
+    with loader.rule_transaction():
+        if undo is not None:
+            temporary.update(loader.undo_terms(undo))
+        elif remove_rule is not None:
+            if remove_rule["list"] == "allow":
+                loader.remove_allow_term(remove_rule["term"])
+            else:
+                loader.remove_deny_term(remove_rule["term"])
+        else:
+            loader.add_deny_term(term, entity_type)
+            temporary.discard(term)
+        corrected = prepare_mask_preview(preview.input_path, vault=preview.vault,
+                                         temporary_allow=temporary)
+        if corrected.before_text != preview.before_text:
+            raise ValueError("Source file changed during review; reopen it before editing rules.")
+        return corrected
+
+
+def active_entity_counts(text, vault):
+    counts = {}
+    for token in tokens_in(text):
+        if vault.resolve(token) is not None:
+            kind = TOKEN_PATTERN.fullmatch(token).group("type")
+            counts[kind] = counts.get(kind, 0) + 1
+    return counts
 
 
 def commit_mask_preview(preview: MaskPreview, *,
@@ -211,7 +245,7 @@ def commit_mask_preview(preview: MaskPreview, *,
         output.unlink(missing_ok=True)
         raise
     return ProcessResult("mask", preview.input_path, output, preview.vault.vault_id,
-                         preview.vault.entity_counts(), preview.warnings,
+                         active_entity_counts(preview.masked_text, preview.vault), preview.warnings,
                          preview.before_text, preview.masked_text)
 
 
@@ -258,23 +292,5 @@ def remask_with_existing_vault(path: Path, vault_id: str, *,
                                history: HistoryStore | None = None,
                                vaults_dir: Path | None = None) -> ProcessResult:
     """Re-scan a source after a manual deny-list correction."""
-    path = Path(path).expanduser().resolve()
-    history = history or HistoryStore()
-    before = readable_text(path)
-    settings = config.load_settings()
-    engine = MaskingEngine(load_deny_lists(), enable_ner=settings["enable_ner"],
-                           expand_person_parts=settings["expand_person_name_parts"])
     vault = Vault.load(vault_id, vaults_dir=vaults_dir)
-    result = mask_file(path, engine, vault, output_format="markdown")
-    output = next_available_path(
-        config.get_masked_output_dir() / (path.stem + ".masked.md"))
-    write_text_exact(output, result.masked_text)
-    try:
-        vault.save()
-        history.append(HistoryRecord.create("mask", path, output, vault.vault_id,
-                                            result.output_format, tokens_in(result.masked_text)))
-    except BaseException:
-        output.unlink(missing_ok=True)
-        raise
-    return ProcessResult("mask", path, output, vault.vault_id, vault.entity_counts(),
-                         result.warnings, before, result.masked_text)
+    return commit_mask_preview(prepare_mask_preview(path, vault=vault), history=history)

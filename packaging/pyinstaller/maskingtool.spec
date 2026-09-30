@@ -21,6 +21,7 @@ from PyInstaller.utils.hooks import (
 datas = []
 binaries = []
 hiddenimports = []
+hiddenimports += ["bs4.builder._htmlparser"]
 
 # spaCy stack + the bundled NER model: heavy dynamic imports and data files
 for pkg in [
@@ -44,6 +45,8 @@ for pkg in [
 
 # spacy validates model compatibility via importlib.metadata
 datas += copy_metadata("spacy") + copy_metadata("en_core_web_sm")
+for package in ("beautifulsoup4", "soupsieve", "filelock"):
+    datas += copy_metadata(package)
 
 # presidio loads recognizers dynamically and reads yaml conf from package data.
 # include_py_files=True materialises presidio's full source tree (not just data

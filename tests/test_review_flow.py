@@ -1,5 +1,6 @@
 """Mandatory human review: MCP mask requests open the GUI and return a
 review_id; masked text reaches Claude ONLY after the user confirms."""
+import re
 import subprocess
 import sys
 import threading
@@ -25,6 +26,7 @@ def data_dir(tmp_path, monkeypatch):
 class TestReviewStore:
     def test_create_then_status(self, data_dir, tmp_path):
         job = review.create_review(tmp_path / "doc.md")
+        assert re.fullmatch(r"rvw_\d{8}T\d{6}_[0-9a-f]{8}", job["review_id"])
         status = review.get_status(job["review_id"])
         assert status["status"] == "waiting_for_user"
 

@@ -2,9 +2,49 @@
 
 > Plan: [CLAUDE.md](CLAUDE.md) · Test plan & TDD workflow: [TESTPLAN.md](TESTPLAN.md) · Test evidence: [Test result/README.md](Test%20result/README.md). Update this file as milestones complete.
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-09-30
 
 ## Current status
+
+**v1.3.0-rc.1 testing prerelease preparation (2026-09-30):** The maintainer
+authorized publishing unsigned test packages. Review enhancements are integrated
+on the latest main base, retaining the existing Windows guided setup and
+installer lifecycle coverage. Native/runtime/MCPB version is 1.3.0. A fresh
+locked environment passed all 224 tests, Ruff, lockfile and five-tool metadata
+checks. CI must additionally verify Windows x64 and macOS arm64/x86_64 artifacts,
+including the new frozen feature smoke and Windows upgrade from v1.2.2-test.3.
+Production signing remains unavailable; customer IE laptop acceptance is not
+claimed. See RELEASING.md for the narrowly authorized prerelease exception.
+
+**Smart token selection (2026-09-30):** Clicking a generated token selects its
+whole span in blue. Partial mouse/keyboard selections expand to whole tokens;
+the highlight persists when focus moves to the action button. Ordinary text
+clicks clear selection, adjacent tokens remain independent, and selecting alone
+does not change rules. The original red/green layout remains in place. All 219
+source tests passed (`dist/pytest-token-select-final`), including native Tk
+click/reverse-drag, emoji offsets, multi-token unmask, literal-token exclusion
+and adjacent-token regression coverage; Ruff passed. The local test executable
+is `dist/unsigned-test-only-token-select-20260930/maskingtool-server`. Frozen
+GUI/selection code objects match current source (`BUILD-INFO.json`); the
+HTML/URL/TEXT/allow-list/restore/GUI approval-gate smoke passed. Opened the new
+GUI for local testing. No release or existing artifact was overwritten.
+
+**Original red/green review layout restored (2026-09-30):** At the user's request,
+the side-by-side view has been replaced by the original single diff preview:
+red original rows followed by green replacement rows; unchanged rows appear
+once. HTML/URL/TEXT, multiline masking and selective unmasking remain supported.
+Display prefixes and synthetic line separators never enter rule values, and
+selections across both copies map to one exact source range. Help and feature
+documentation reflect the restored layout. All 214 source tests passed
+(`dist/pytest-redgreen-full-20260930`), including real Tk CRLF/emoji/multiline,
+partial-token unmasking and post-confirmation output preservation; changed Python
+files pass Ruff. Windows test build completed at
+`dist/unsigned-test-only-redgreen-20260930/maskingtool-server`; its frozen
+HTML/table/URL/TEXT/allow-list/cold-restore and GUI approval-gate smoke passed.
+The new executable was opened and its single-preview layout visually checked.
+The 2026-09-28 artifact below still uses the earlier layout.
+
+**Unreleased HTML / URL / review implementation (2026-09-28):** HTML/HTM semantic input, URL/TEXT categories, exact multiline selections, two-pane token-to-source mapping, strict selective unmasking, allow-list management and locked rule rollback are implemented. The existing v1.2.0 tag/release is unchanged. See [feature behavior](docs/HTML_URL_REVIEW.md). Source validation: 210 tests passed with `.venv\Scripts\python.exe -m pytest -q --basetemp=dist/pytest-enhancements-final-210`; Ruff, lockfile and five-tool metadata checks passed. Real Tk tests and Chinese two-panel/list-window visual inspection passed on this Windows workstation. Local Windows frozen verification passed: all 31 bundled application modules/entrypoint match current source code objects; the existing five-tool/approval/NER/cold-restore smoke and the new HTML/table/URL/TEXT/allow-list/cold-restore/GUI-startup smoke passed. Test-only bundle: `dist/unsigned-test-only-html-20260928/maskingtool-server`; provenance is in `BUILD-INFO.json`. ZIP integrity and SHA-256 verified for `dist/content-masking-tool-windows-x64-unsigned-test-only-html-review-20260928.zip` (`5a408433887c8ca7b62b463a1edb5194a8a2270f12d67e7e344a891d43f57f42`). Customer IE files/laptop and macOS remain unverified.
 
 **Next-release managed installer test pipeline implemented and CI-verified:**
 on 2026-09-14, release requirements were approved for a per-machine
@@ -37,6 +77,19 @@ stapling, upgrade/downgrade matrices, release-manifest generation, and the
 protected unified final release job remain **not implemented or not run**.
 Existing v1.2.0 ZIP/MCPB evidence is not evidence for these new installer
 formats.
+
+**Signed Windows pilot entry implemented, credentials still blocked:** the MSI
+builder now has a fail-closed `-Pilot` path that requires a clean Git tree, an
+approved ARP Publisher and permanent UpgradeCode, an exact code-signing
+certificate thumbprint/subject from `CurrentUser\My`, an approved HTTPS RFC
+3161 timestamp URL, and a valid Microsoft SignTool. It signs and verifies the
+frozen executable before packaging, then signs and verifies the final MSI and
+records hash/signature evidence in its JSON sidecar. The existing unsigned
+test path was regression-built on 2026-09-16 from 2,337 payload files and the
+focused installer-generator suite passed 14 tests; the complete source suite
+passed 177 tests. No code-signing certificate is installed on this workstation,
+so the signed path has not produced or installed an artifact and remains
+unqualified for release or pilot use.
 
 **Claude Desktop Windows install repaired and live-verified:** v1.2.0 is now
 installed in the Microsoft Store package's physical LocalCache data root, the
@@ -99,7 +152,8 @@ remain separate historical sign-off items.
 
 - Next formal version not assigned; `[Unreleased]` remains the only label.
 - Windows Manufacturer/Publisher, Authenticode identity, RFC 3161 timestamp
-  service, and permanent MSI UpgradeCode not approved.
+  service, and permanent MSI UpgradeCode not approved or provisioned. The
+  fail-closed signed-pilot build path is implemented but has not run.
 - macOS package identifier, Apple Team ID, and Developer ID Application /
   Installer identities not approved.
 - `release-signing` Environment, reviewers, and real secret values are not

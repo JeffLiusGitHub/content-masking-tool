@@ -1,5 +1,7 @@
 # Content Masking Tool — 使用说明（给团队）
 
+> Unreleased source/test builds add HTML input, automatic URL masking, multiline selections and selective unmasking. Read [HTML and editable review rules](docs/HTML_URL_REVIEW.md) for the strict deny/allow behavior and immediate persistence. The existing v1.2.0 release is unchanged.
+
 本工具在你的电脑本地把文档里的人名/公司名替换成 `⟦PERSON_001⟧` 这类代号后再交给
 Claude，事后可精确还原。真名和还原映射表（vault）永远只在你本机。
 

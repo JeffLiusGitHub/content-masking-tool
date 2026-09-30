@@ -26,7 +26,7 @@ EXPECTED_TOOLS = (
 EXPECTED_LICENSE = "AGPL-3.0-only"
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 TEST_TAG_RE = re.compile(
-    r"^(?P<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))-test\.[1-9]\d*$"
+    r"^(?P<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))-(?:test|rc)\.[1-9]\d*$"
 )
 MSI_VERSION_LIMITS = (255, 255, 65535)
 

@@ -190,7 +190,10 @@ class TestStdioNeverLeaksOriginals:
         })
         import re
 
-        match = re.search(rb'"review_id":\s*\\?"?([0-9]{8}-[0-9]{6}-[0-9a-f]{8})', p1.stdout)
+        match = re.search(
+            rb'"review_id":\s*\\?"?(rvw_[0-9]{8}T[0-9]{6}_[0-9a-f]{8})',
+            p1.stdout,
+        )
         assert match, "review_id not found in stdout"
         rid = match.group(1).decode()
 

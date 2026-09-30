@@ -107,6 +107,18 @@ def _heading_prefix(style_name: str) -> str:
 
 
 def render_markdown_from_docx(parse: DocxParse, new_texts: list[str]) -> str:
+    def cell_text(indices):
+        parts = []
+        previous = None
+        for index in indices:
+            # Missing indices are paragraph separator spans. Adjacent run
+            # indices must concatenate exactly, without inventing word spaces.
+            if previous is not None and index != previous + 1:
+                parts.append("<br>")
+            parts.append(new_texts[index])
+            previous = index
+        return "".join(parts).strip()
+
     lines: list[str] = []
     for block in parse.blocks:
         if block[0] == "para":
@@ -116,10 +128,7 @@ def render_markdown_from_docx(parse: DocxParse, new_texts: list[str]) -> str:
         else:
             _, rows = block
             for row_num, row_cells in enumerate(rows):
-                cells = [
-                    " ".join(new_texts[i] for i in indices).strip()
-                    for indices in row_cells
-                ]
+                cells = [cell_text(indices) for indices in row_cells]
                 lines.append("| " + " | ".join(cells) + " |")
                 if row_num == 0:
                     lines.append("|" + " --- |" * len(cells))

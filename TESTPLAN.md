@@ -3,6 +3,24 @@
 > Companion to [CLAUDE.md](CLAUDE.md) (plan) and [PROGRESS.md](PROGRESS.md) (status).
 > Rule of thumb: **no production module is written before its failing tests exist.**
 
+## Restored red/green review layout (2026-09-30)
+
+- Click a generated token to select its full span in blue, including when emoji
+  precedes it. Partial forward/reverse mouse or keyboard selections expand to
+  whole tokens. Adjacent tokens remain separately selectable. Highlight survives
+  focus moving to Unmask; clicking ordinary text clears it. Selection alone does
+  not alter rules, and literal token-shaped text does not gain token behavior.
+
+- One preview shows red original rows followed by green replacement rows;
+  unchanged rows appear once. Both mask and restore previews use this layout.
+- Select multiline LF/CRLF text, including emoji and literal `- `/`+ ` prefixes;
+  rules must contain only the exact source value, never display decoration.
+- Select part of a green token, a token plus its URL suffix, or both red and
+  green copies: map to the original range without duplication; marker-only
+  selections do not create rules. Batch unmask still resolves each original.
+- Verify unmask/remask and reconfirmation preserve existing output files.
+- Automated evidence: `tests/test_diff_selection.py`, `tests/test_review_gui.py`.
+
 ## 1. Why TDD fits this project
 
 The core promise of this tool is *lossless reversibility*: `restore(mask(text)) == text`, byte-for-byte, every time, including across process restarts. That property is cheap to assert in a test and catastrophic to get silently wrong in production (a leaked real name, or a corrupted restored document). So the test suite is not an afterthought — it IS the specification of correctness.
@@ -33,11 +51,33 @@ deny-list suite must also remain green when NER is explicitly disabled.
 
 - **INV-1 Round-trip**: for any input text and any deny-list, `restore(mask(text)) == text` exactly.
 - **INV-2 Consistency**: the same original value yields the same token at every occurrence, within a document and across `mask` calls reusing the same vault.
-- **INV-3 No leakage**: masked output contains **zero** occurrences of any deny-list term (case-sensitive exact match, Stage 1 semantics).
+- **INV-3 No leakage**: deny-list matches are masked except for exact ranges
+  explicitly allowed by the user's permanent allow list or current-review
+  exceptions. Manual selections precede URLs, which precede ordinary deny-list
+  and NER detections. All retained HTML text and link targets enter analysis.
 - **INV-4 Determinism**: masking the same document twice with a fresh vault yields identical output (token numbering is order-of-appearance, not random).
 - **INV-5 Persistence**: a vault saved, process "restarted" (new object, load from disk), then used to restore, behaves identically to the in-memory vault.
 
 ## 4. Per-module test specifications
+
+### Unreleased HTML / URL / review acceptance
+
+- `tests/test_html_input.py`: offline HTML/HTM conversion, tables and nested
+  tables, entities/escaped names, linked and visible URLs, safe restoration,
+  CLI input, and the unchanged MCP review-result gate.
+- `tests/test_review_enhancements.py`: URL priority and punctuation, no bare
+  domain/cross-line guessing, multiline exactness, strict unmask branching,
+  permanent allows, token reuse, active counts, source selection mapping,
+  rule write/analysis failure rollback, and preservation of earlier outputs.
+  Canonical DOCX table conversion must retain exact names split across runs.
+- `tests/test_review_gui.py`: real Tk selections (including CRLF and emoji),
+  partial-token selection, background unmask/remask, and post-confirm edits.
+- `packaging/pyinstaller/smoke_review_features.py`: isolated frozen HTML/URL/
+  TEXT/allow-list round trips and GUI startup with an unapproved review.
+- HTML acceptance preserves semantic content and rectangular table relationships,
+  not original source bytes or page styling. Excel still returns unsupported.
+- Customer discovery-schedule and managed-laptop acceptance are separate from
+  source/frozen smoke tests; macOS testing must run on macOS.
 
 ### 4.1 `tests/test_vault.py` (Milestone 2)
 

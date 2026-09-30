@@ -118,6 +118,7 @@ build_one() {
 
   echo "== 6/9 Smoke test frozen MCP stdio server ($ARCH) =="
   "$PYTHON" "$SCRIPT_DIR/smoke_frozen.py" "$EXE"
+  "$PYTHON" "$SCRIPT_DIR/smoke_review_features.py" "$EXE"
   local VERSION VERSION_OUTPUT
   VERSION="$(cd "$ROOT" && "$PYTHON" -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
   VERSION_OUTPUT="$("$EXE" --version)"

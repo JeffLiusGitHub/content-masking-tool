@@ -7,6 +7,8 @@ the token in the first overlapping span and blanks the rest.
 """
 from __future__ import annotations
 
+import re
+
 from presidio_analyzer import RecognizerResult
 
 from maskingtool.operators import apply_replacements
@@ -16,6 +18,8 @@ from maskingtool.recognizers import (
 )
 from maskingtool.spans import SpannedText
 from maskingtool.vault import Vault
+from maskingtool.urls import find_urls
+from maskingtool.recognizers import _term_regex
 
 NER_ENTITY_MAP = {"ORGANIZATION": "ORG"}  # normalize presidio/spaCy naming
 NER_ENTITIES = ["PERSON", "ORGANIZATION"]
@@ -28,6 +32,8 @@ class MaskingEngine:
         enable_ner: bool = False,
         ner_backend: str = "spacy",
         expand_person_parts: bool = True,
+        allow_terms: list[str] | None = None,
+        manual_terms: list[dict[str, str]] | None = None,
     ):
         if expand_person_parts and deny_lists.get("PERSON"):
             deny_lists = {
@@ -38,16 +44,38 @@ class MaskingEngine:
         self._enable_ner = enable_ner
         self._ner_backend = ner_backend
         self._ner_analyzer = None  # built lazily on first NER analysis
+        self._allow_terms = allow_terms or []
+        self._manual_terms = manual_terms or []
 
     # -- analysis ----------------------------------------------------------
 
     def analyze(self, text: str) -> list[RecognizerResult]:
-        results: list[RecognizerResult] = []
+        candidates = []
+        protected = [m.span() for term in self._allow_terms if term
+                     for m in re.finditer(_term_regex(term), text)]
+        for item in self._manual_terms:
+            for m in re.finditer(re.escape(item["term"]), text):
+                candidates.append((3, RecognizerResult(item["entity_type"], m.start(), m.end(), 1.0)))
+        candidates.extend((2, result) for result in find_urls(text))
         for rec in self._recognizers:
-            results.extend(rec.analyze(text, entities=rec.supported_entities))
+            candidates.extend((1, result) for result in rec.analyze(text, entities=rec.supported_entities))
         if self._enable_ner:
-            results.extend(self._analyze_ner(text))
-        return _resolve_overlaps(results)
+            candidates.extend((0, result) for result in self._analyze_ner(text))
+        kept = []
+        for priority, result in sorted(candidates, key=lambda pair: (-pair[0], -pair[1].score, pair[1].start - pair[1].end, pair[1].start)):
+            # Overlapping lower-priority candidates must not fragment selected
+            # entities. Explicit allows, however, protect only their own range.
+            overlaps = [(r.start, r.end) for r in kept if result.start < r.end and result.end > r.start]
+            if overlaps and priority != 2:
+                continue
+            ranges = [(result.start, result.end)]
+            # Manual domain selections retain their chosen type, but must not
+            # disable URL masking of the remaining scheme/path/query.
+            for start, end in [*protected, *overlaps]:
+                ranges = [(a, b) for left, right in ranges
+                          for a, b in ((left, min(right, start)), (max(left, end), right)) if a < b]
+            kept.extend(RecognizerResult(result.entity_type, a, b, result.score) for a, b in ranges)
+        return sorted(kept, key=lambda r: r.start)
 
     def _analyze_ner(self, text: str) -> list[RecognizerResult]:
         if self._ner_analyzer is None:
@@ -67,11 +95,20 @@ class MaskingEngine:
 
     # -- masking -----------------------------------------------------------
 
-    def mask_text(self, text: str, vault: Vault) -> str:
-        replacements = [
-            (r.start, r.end, vault.get_or_create_token(text[r.start : r.end], r.entity_type))
-            for r in self.analyze(text)
-        ]
+    def mask_text(self, text: str, vault: Vault, *, html_source=False) -> str:
+        analysis_text = text
+        if html_source:
+            from maskingtool.markup import semantic_view
+            analysis_text, offsets = semantic_view(text)
+        replacements = []
+        for result in self.analyze(analysis_text):
+            start, end = result.start, result.end
+            if html_source:
+                start, end = offsets[start][0], offsets[end - 1][1]
+            token = vault.get_or_create_token(text[start:end], result.entity_type)
+            if html_source:
+                vault.set_html_original(token, analysis_text[result.start:result.end])
+            replacements.append((start, end, token))
         return apply_replacements(text, replacements)
 
     def mask_spanned(self, spanned: SpannedText, vault: Vault) -> list[str]:

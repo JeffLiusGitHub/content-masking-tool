@@ -4,6 +4,7 @@ TESTPLAN.md section 4.1. Written BEFORE vault.py exists (TDD red phase).
 All tests use tmp_path so the real %APPDATA% is never touched.
 """
 import json
+import re
 
 import pytest
 
@@ -23,6 +24,9 @@ def vault(vaults_dir):
 
 
 class TestTokenFormat:
+    def test_vault_id_separates_date_and_time_with_a_letter(self, vault):
+        assert re.fullmatch(r"vlt_\d{8}T\d{6}_[0-9a-f]{8}", vault.vault_id)
+
     def test_first_person_token(self, vault):
         assert vault.get_or_create_token("John Smith", "PERSON") == "⟦PERSON_001⟧"
 
@@ -69,6 +73,18 @@ class TestResolve:
 
 
 class TestPersistence:
+    def test_legacy_vault_id_still_loads(self, vaults_dir):
+        legacy = Vault(
+            "20260717-000000-abcd1234",
+            source_filename="legacy.md",
+            vaults_dir=vaults_dir,
+        )
+        legacy.save()
+
+        loaded = Vault.load(legacy.vault_id, vaults_dir=vaults_dir)
+
+        assert loaded.vault_id == legacy.vault_id
+
     def test_save_load_roundtrip(self, vault, vaults_dir):
         t_org = vault.get_or_create_token("Acme Corp", "ORG")
         t_person = vault.get_or_create_token("张三", "PERSON")

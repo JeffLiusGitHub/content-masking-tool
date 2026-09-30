@@ -43,6 +43,34 @@ Target: Windows + macOS, public open-source distribution under AGPL-3.0, Stage 1
 - Do not push, create a tag, or create/publish a GitHub Release without explicit
   authorization.
 
+## Unreleased review enhancements (approved 2026-09-28)
+
+The maintainer authorized `v1.3.0-rc.1` as an unsigned testing prerelease on
+2026-09-30, including pushing the release commit and uploading test packages to
+GitHub. Native version is `1.3.0`; formal signed-release rules remain unchanged.
+
+This behavior supersedes conflicting historical Stage 1 input/priority notes
+below. See `docs/HTML_URL_REVIEW.md`, `TESTPLAN.md`, and `PROGRESS.md` for current
+behavior and verification; the immutable v1.2.0 release is unchanged.
+
+- Accept static HTML/HTM input, converted offline to semantic Markdown/simplified
+  HTML with table relationships. Do not promise original HTML bytes or styling;
+  Excel input remains outside this change.
+- Detect HTTP/HTTPS/www URLs independently of NER; use `URL` tokens. Do not
+  guess bare domains or join physical lines. Manual multiline selections are
+  one exact value; `TEXT` is also a supported manual category.
+- Review uses the original interleaved red/green diff with source-mapped selections and explicit
+  Mask/Unmask actions. Editing an existing result requires a new confirmation
+  and must not overwrite its prior output or renumber existing Vault tokens.
+- Unmask a direct deny entry by deleting it and retaining a review-only allow;
+  otherwise add a permanent allow. Remasking removes the corresponding allow.
+  Permanent list edits survive preview cancellation; failed operations roll back.
+- Explicit allow ranges precede manual selections, automatic URLs, ordinary
+  deny-list matches and NER. Allows protect only their exact ranges, not a larger
+  enclosing URL. The deny-list no-leak invariant has these user-directed exceptions.
+- Preserve editable CSVs and old Vaults; manual JSON is an active rule source,
+  including multiline values. The MCP surface remains five human-review tools.
+
 ## Dev environment prerequisite
 
 This dev machine only has Python 2.7.18 (`C:\Python27`); the WindowsApps `python3.exe` is an unconfigured Microsoft Store install stub. Presidio/spaCy/MCP require Python 3.11+. Resolution: install `uv` (astral.sh installer) on this machine — it manages its own Python 3.11+ download and the project venv. This is a **dev-machine-only** requirement; end users never install Python, since Stage 1 ships a PyInstaller-frozen binary (`server.type: "binary"` in the MCPB manifest) with everything bundled.

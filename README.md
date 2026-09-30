@@ -8,15 +8,14 @@
 
 **English** ⬇️ | [中文](#中文说明)
 
-Local-first, reversible masking of company and people names in documents (MD/TXT/DOCX/PDF) before their content reaches an AI — shipped as a Windows and macOS desktop app, a CLI, and a Claude Desktop Extension (MCP), all in one executable.
+Local-first, reversible masking of company names, people and URLs in documents (MD/TXT/HTML/DOCX/PDF) before their content reaches an AI — shipped as a Windows and macOS desktop app, a CLI, and a Claude Desktop Extension (MCP), all in one executable.
 
 本地优先、可逆的文档脱敏工具:在文档内容进入 AI 之前,把公司名和人名替换成令牌,事后精确还原。[跳转到中文完整说明 →](#中文说明)
 
-**Status:** v1.2.0 has a Windows x64 build and native macOS arm64/x86_64
-build paths. Its release binaries are unsigned, and no MSI or PKG has shipped.
-Unsigned-test-only MSI/PKG projects now exist for the next-release pipeline and
-have passed clean CI lifecycle checks on Windows x64 and macOS arm64/x86_64;
-all production signing/notarization work remains pending. Details in
+**Status:** v1.3.0-rc.1 is an unsigned testing prerelease with native base version
+1.3.0. It adds HTML input and editable red/green masking review. Test distributions
+include Windows x64 MSI/guided setup, macOS arm64/x86_64 PKGs and separate MCPBs.
+Production signing/notarization remains pending; v1.2.0 is unchanged. Details in
 [PROGRESS.md](PROGRESS.md).
 
 ---
@@ -31,7 +30,9 @@ Documents sent to Claude (or any AI) often contain confidential company and peop
 - **Mandatory human review** — no masked file is created from any entry point until you inspect a red/green diff and explicitly confirm;
 - **Fully local** — no network dependency (proven by socket-disabled tests); Vaults, name lists, and history stay under `%APPDATA%\ContentMaskingTool\`.
 
-Supported input: `.md` / `.markdown` / `.txt` / `.docx` / `.pdf` (PDF is text-extraction to masked Markdown only; scanned PDFs are rejected explicitly instead of producing garbage).
+> **v1.3.0-rc.1 testing prerelease:** HTML input, URL tokens, multiline masking, selective unmasking and click-to-select token highlighting. See [HTML and review rules](docs/HTML_URL_REVIEW.md). These changes are not in the immutable v1.2.0 release.
+
+Current source supported input: `.md` / `.markdown` / `.txt` / `.html` / `.htm` / `.docx` / `.pdf` (PDF is text-extraction to masked Markdown only; scanned PDFs are rejected explicitly instead of producing garbage).
 
 ## Detection (two layers)
 
@@ -268,7 +269,9 @@ When collaborating, **share only the masked file**; send the matching Vault JSON
 - **强制人工审核** — 无论从哪个入口发起脱敏,生成文件前都要你亲眼检查红绿对比并点确认;
 - **完全本地** — 无网络依赖(有断网测试证明),Vault、名单、历史都只存在 `%APPDATA%\ContentMaskingTool\`。
 
-支持输入:`.md` / `.markdown` / `.txt` / `.docx` / `.pdf`(PDF 仅提取文本生成脱敏 Markdown;扫描版 PDF 会被明确拒绝而不是输出乱码)。
+**未发布功能：**HTML 输入、URL 自动遮罩、多行选择、逐项取消遮罩及黑白名单管理已加入源码和本地测试构建。v1.2.0 历史发布包不包含这些修改。详见 [HTML 与审阅规则](docs/HTML_URL_REVIEW.md)。
+
+当前源码支持输入:`.md` / `.markdown` / `.txt` / `.html` / `.htm` / `.docx` / `.pdf`(PDF 仅提取文本生成脱敏 Markdown;扫描版 PDF 会被明确拒绝而不是输出乱码)。
 
 ## 识别机制(两层)
 

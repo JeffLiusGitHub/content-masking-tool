@@ -53,9 +53,11 @@ class Vault:
 
     @classmethod
     def create(cls, source_filename: str, vaults_dir: Path | None = None) -> "Vault":
-        vault_id = (
-            datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
-        )
+        # Match review ids: the ``T`` splits date and time so this structural id
+        # cannot look like a 13-19 digit payment-card candidate after separator
+        # normalization. Vault.load remains format-agnostic, so existing ids are
+        # still fully supported.
+        vault_id = f"vlt_{datetime.now():%Y%m%dT%H%M%S}_{uuid.uuid4().hex[:8]}"
         return cls(vault_id, source_filename, vaults_dir=vaults_dir)
 
     @classmethod
@@ -96,6 +98,14 @@ class Vault:
     def resolve(self, token: str) -> str | None:
         entry = self._mappings.get(token)
         return entry["original"] if entry else None
+
+    def set_html_original(self, token: str, original: str) -> None:
+        """Optional semantic value for HTML restoration; old vaults need no migration."""
+        self._mappings[token]["html_original"] = original
+
+    def resolve_html(self, token: str) -> str | None:
+        entry = self._mappings.get(token)
+        return entry.get("html_original", entry["original"]) if entry else None
 
     def __len__(self) -> int:
         return len(self._mappings)

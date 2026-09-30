@@ -62,6 +62,8 @@ if (-not (Test-Path -LiteralPath $exe)) { throw "frozen exe not found: $exe" }
 Write-Host "== 6/9 Smoke test frozen MCP stdio server ==" -ForegroundColor Cyan
 & $python (Join-Path $PSScriptRoot "smoke_frozen.py") $exe
 if ($LASTEXITCODE -ne 0) { throw "frozen exe smoke test failed" }
+& $python (Join-Path $PSScriptRoot "smoke_review_features.py") $exe
+if ($LASTEXITCODE -ne 0) { throw "frozen review feature smoke test failed" }
 $projectText = Get-Content -LiteralPath (Join-Path $root "pyproject.toml") -Raw
 $versionMatch = [regex]::Match($projectText, '(?m)^version\s*=\s*"([^"]+)"')
 if (-not $versionMatch.Success) { throw "Unable to read project version" }

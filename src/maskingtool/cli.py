@@ -34,7 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument("--enable-ner", action="store_true",
                    help="force NER on (default: settings.json, ships enabled)")
     m.add_argument("--no-ner", action="store_true",
-                   help="force NER off (deny-list only, fully deterministic)")
+                   help="force NER off (deny-lists and URL detection remain active)")
     m.add_argument(
         "--no-expand-names",
         action="store_true",
@@ -76,11 +76,15 @@ def _cmd_mask(args) -> int:
         enable_ner = False
     else:
         enable_ner = config.load_settings()["enable_ner"]
-    engine = MaskingEngine(
-        _load_deny_lists(args),
-        enable_ner=enable_ner,
-        expand_person_parts=not args.no_expand_names,
-    )
+    from maskingtool.denylist import loader
+    with loader.rule_transaction():
+        engine = MaskingEngine(
+            _load_deny_lists(args),
+            enable_ner=enable_ner,
+            expand_person_parts=not args.no_expand_names,
+            allow_terms=loader.load_allow_terms(),
+            manual_terms=loader.load_manual_terms(),
+        )
     if args.vault_id:
         vault = Vault.load(args.vault_id, vaults_dir=args.vaults_dir)
     else:
@@ -93,11 +97,12 @@ def _cmd_mask(args) -> int:
     )
     write_text_exact(output, result.masked_text)
 
+    from maskingtool.gui_core import active_entity_counts
     info = {
         "vault_id": vault.vault_id,
         "output": str(output),
         "output_format": result.output_format,
-        "entity_counts": vault.entity_counts(),
+        "entity_counts": active_entity_counts(result.masked_text, vault),
         "warnings": result.warnings,
     }
     if args.result_json:

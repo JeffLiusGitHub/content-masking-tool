@@ -49,7 +49,7 @@ class TestMaskCommand:
         assert "Acme Corp" not in masked
         assert "⟦ORG_001⟧" in masked
         assert info["vault_id"]
-        assert info["entity_counts"] == {"ORG": 2, "PERSON": 2}
+        assert info["entity_counts"] == {"ORG": 2, "PERSON": 2, "URL": 1}
 
     def test_mask_html(self, tmp_path, vaults_dir, denylist_files):
         out, info = _mask(tmp_path, vaults_dir, denylist_files, fmt="html")

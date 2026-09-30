@@ -17,7 +17,7 @@ from maskingtool.mcp_server.schemas import (
     ReviewStatus,
 )
 from maskingtool.operators import restore_text as _restore_text
-from maskingtool.pipeline import restore_file
+from maskingtool.pipeline import restore_file, MASK_INPUT_SUFFIXES
 from maskingtool.textio import read_text_exact
 from maskingtool.vault import Vault
 
@@ -34,7 +34,7 @@ def mask_document(file_path: str) -> MaskReviewStarted:
     immediately. Masked text reaches the conversation only via
     get_review_result after the user confirms in the window."""
     path = _existing_path(file_path)
-    supported = {".md", ".markdown", ".txt", ".docx", ".pdf"}
+    supported = MASK_INPUT_SUFFIXES
     if path.suffix.lower() not in supported:
         raise ValueError(
             f"Unsupported file type '{path.suffix}'. Supported: "

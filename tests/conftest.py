@@ -22,4 +22,5 @@ def isolated_masked_output_dir(tmp_path, monkeypatch):
     """Keep masked outputs out of the real Documents\\Masked Files folder."""
     d = tmp_path / "masked-output"
     monkeypatch.setenv("MASKINGTOOL_MASKED_DIR", str(d))
+    monkeypatch.setenv("MASKINGTOOL_DATA_DIR", str(tmp_path / "isolated-app"))
     return d

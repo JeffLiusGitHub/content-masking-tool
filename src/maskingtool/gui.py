@@ -10,8 +10,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from maskingtool import config
-from maskingtool.denylist.loader import add_deny_term, load_manual_terms
-from maskingtool.gui_core import AmbiguousVaultError, HistoryStore, ProcessResult, commit_mask_preview, detect_file_action, diff_lines, prepare_mask_preview, process_dropped_file, remask_with_existing_vault
+from maskingtool.denylist import loader
+from maskingtool.gui_core import AmbiguousVaultError, HistoryStore, ProcessResult, commit_mask_preview, detect_file_action, prepare_mask_preview, process_dropped_file, edit_preview
+from maskingtool.selection import map_diff_selection, review_diff, replacement_ranges
+from maskingtool.vault import TOKEN_PATTERN
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -107,6 +109,40 @@ TEXT["zh"].update({
 })
 
 
+TEXT["en"].update({
+    "original": "Original", "masked": "Masked result", "unmask": "Unmask selected",
+    "url": "URL", "text": "Text", "list": "List", "source": "Source", "delete_rule": "Delete selected rule",
+    "deny": "Deny list", "allow": "Allow list", "custom_terms": "Deny / allow lists",
+    "terms_title": "Persistent deny / allow lists", "diff": "Diff preview (red = original, green = masked)",
+    "select_text_body": "Select non-empty text in the diff preview. Multiline selections are supported.",
+    "select_masked": "Click a token to highlight it in blue, or select its original text, then click Unmask selected.",
+    "rule_note": "Rule changes are saved immediately and survive cancelling this preview.",
+    "undo_note": "Unmasked. Direct deny-list entries were removed and kept for this review only; other items were added to the permanent allow list.",
+    "preview_detail": "Review the red/green changes, then confirm to create a file. Rule changes are saved immediately, even if you cancel.",
+    "tour_drop_body": "Choose text, Markdown, HTML, DOCX or PDF. HTML tables keep their rows and columns.",
+    "tour_diff_body": "Red minus lines show original text; green plus lines show the masked result below it. Unchanged lines appear once. No output file exists yet.",
+    "tour_select_body": "Click a token to select it in blue; partial selections expand to the whole token. Then click Unmask selected to restore it. Multiline selection and manual masking are also supported.",
+    "tour_terms_body": "Inspect and delete persistent deny/allow rules. Changes are immediate and are not undone when you cancel a preview.",
+    "cancelled": "Preview cancelled — saved rule changes are retained",
+})
+TEXT["zh"].update({
+    "original": "原文", "masked": "遮罩结果", "unmask": "取消所选遮罩",
+    "url": "URL", "text": "文本", "list": "名单", "source": "来源", "delete_rule": "删除所选规则",
+    "deny": "黑名单", "allow": "白名单", "custom_terms": "黑名单／白名单",
+    "terms_title": "长期黑名单／白名单", "diff": "差异预览（红色=原文，绿色=遮罩结果）",
+    "select_text_body": "请在差异预览中选择非空文字，支持跨多行选择。",
+    "select_masked": "点击 token 将其选中并显示蓝色背景，或选中对应原文，再点击“取消所选遮罩”。",
+    "rule_note": "名单修改立即保存；取消预览不会撤销已保存的规则。",
+    "undo_note": "已取消遮罩：黑名单直接词条已删除，仅本次保留；其他项已加入长期白名单。",
+    "preview_detail": "检查红绿变化后确认生成文件。名单修改立即保存，取消预览也会保留。",
+    "tour_drop_body": "支持文本、Markdown、HTML、DOCX 和 PDF。HTML 表格保留行列关系。",
+    "tour_diff_body": "红色减号行是原文，下方绿色加号行是遮罩结果；未修改的行只显示一次。此时尚未生成输出文件。",
+    "tour_select_body": "点击 token 可将其整块选中并显示蓝色背景；只选中一部分也会自动补齐。再点击“取消所选遮罩”即可恢复原文。仍支持多行选择和手动遮罩。",
+    "tour_terms_body": "查看和删除长期黑白名单规则。修改立即保存，取消预览不会撤销。",
+    "cancelled": "预览已取消——已保存的名单修改仍然保留",
+})
+
+
 def translated(language: str, key: str) -> str:
     return TEXT.get(language, TEXT["en"]).get(key, TEXT["en"][key])
 
@@ -180,12 +216,14 @@ class MaskingToolApp:
         self.output_path = self.current_path = None
         self.current_result = None
         self.current_preview = None
+        self.last_mask_preview = None
+        self.selection_panel = None
         self.review_id = None
         self.session_terms = []
         self.busy = False
         saved = config.load_settings().get("gui_language", "en")
         self.language = saved if saved in TEXT else "en"
-        root.geometry("920x680"); root.minsize(720, 520)
+        root.geometry("1180x760"); root.minsize(1000, 600)
         self._build(); self._apply_language()
         if not config.load_settings().get("gui_tutorial_seen", False):
             self.root.after(250, self.show_tutorial)
@@ -218,16 +256,26 @@ class MaskingToolApp:
         self.diff_label = ttk.Label(review); self.diff_label.pack(side="left")
         self.terms_button = ttk.Button(review, command=self.show_custom_terms); self.terms_button.pack(side="right")
         self.mask_selected_button = ttk.Button(review, command=self.mask_selected, state="disabled"); self.mask_selected_button.pack(side="right", padx=8)
+        self.unmask_button = ttk.Button(review, command=self.unmask_selected, state="disabled"); self.unmask_button.pack(side="right")
         self.cancel_button = ttk.Button(review, command=self.cancel_preview, state="disabled"); self.cancel_button.pack(side="right")
         self.confirm_button = ttk.Button(review, command=self.confirm_preview, state="disabled"); self.confirm_button.pack(side="right", padx=8)
         frame = ttk.Frame(shell); frame.pack(fill="both", expand=True, pady=(4, 0))
         self.diff = tk.Text(frame, wrap="none", state="disabled", exportselection=False, font=("Consolas", 10))
-        ys, xs = ttk.Scrollbar(frame, orient="vertical", command=self.diff.yview), ttk.Scrollbar(frame, orient="horizontal", command=self.diff.xview)
-        self.diff.configure(yscrollcommand=ys.set, xscrollcommand=xs.set); self.diff.grid(row=0, column=0, sticky="nsew")
-        ys.grid(row=0, column=1, sticky="ns"); xs.grid(row=1, column=0, sticky="ew")
+        ys = ttk.Scrollbar(frame, orient="vertical", command=self.diff.yview)
+        xs = ttk.Scrollbar(frame, orient="horizontal", command=self.diff.xview)
+        self.diff.configure(yscrollcommand=ys.set, xscrollcommand=xs.set)
+        self.diff.grid(row=0, column=0, sticky="nsew"); ys.grid(row=0, column=1, sticky="ns"); xs.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1); frame.columnconfigure(0, weight=1)
         self.diff.tag_configure("delete", foreground="#a12622", background="#ffeef0")
-        self.diff.tag_configure("insert", foreground="#116329", background="#dafbe1"); self.diff.tag_configure("equal", foreground="#57606a")
+        self.diff.tag_configure("insert", foreground="#116329", background="#dafbe1")
+        self.diff.configure(selectbackground="#2563eb", selectforeground="#ffffff",
+                            inactiveselectbackground="#2563eb")
+        self.diff.bind("<Button-1>", lambda event: self._select_panel(self.diff))
+        self.diff.bind("<FocusIn>", lambda event: self._select_panel(self.diff))
+        self.diff.bind("<ButtonRelease-1>", self._finish_token_selection)
+        self.diff.bind("<KeyRelease>", self._finish_token_selection)
+        self.diff_rows = []
+        self.token_spans = []
 
     def _apply_language(self):
         self.root.title("Content Masking Tool"); self.language_label.configure(text=self.tr("language") + ":")
@@ -236,6 +284,7 @@ class MaskingToolApp:
         self.open_button.configure(text=self.tr("open")); self.folder_button.configure(text=self.tr("folder"))
         self.diff_label.configure(text=self.tr("diff")); self.status.set(self.tr("ready"))
         self.mask_selected_button.configure(text=self.tr("mask_selected")); self.terms_button.configure(text=self.tr("custom_terms"))
+        self.unmask_button.configure(text=self.tr("unmask"))
         self.tutorial_button.configure(text=self.tr("tutorial")); self.confirm_button.configure(text=self.tr("confirm_create")); self.cancel_button.configure(text=self.tr("cancel_preview"))
 
     def _change_language(self, _event=None):
@@ -254,6 +303,8 @@ class MaskingToolApp:
 
     def process(self, path: Path, selected_vault_id=None, restore_confirmed=False):
         if self.busy: return
+        if not selected_vault_id and not restore_confirmed:
+            self.last_mask_preview = None; self.session_terms = []
         self.busy, self.current_path = True, path
         self.status.set(self.tr("working")); self.details.set(str(path)); self.drop.configure(text=self.tr("working_drop"))
         def work():
@@ -276,14 +327,18 @@ class MaskingToolApp:
     def _preview_ready(self, preview):
         self.busy, self.current_preview, self.current_result = False, preview, None
         self.current_path = preview.input_path; self.status.set(self.tr("preview_ready"))
-        self.details.set(f"{self.tr('preview_detail')}\n{self.tr('output')}: {preview.proposed_output_path}")
+        warning = ("\n" + self.tr("warning") + ": " + " | ".join(preview.warnings)) if preview.warnings else ""
+        self.details.set(f"{self.tr('preview_detail')}\n{self.tr('output')}: {preview.proposed_output_path}{warning}")
         self.drop.configure(text=self.tr("drop_next")); self._show_diff(preview.before_text, preview.masked_text)
         self.confirm_button.configure(state="normal"); self.cancel_button.configure(state="normal"); self.mask_selected_button.configure(state="normal")
+        self.unmask_button.configure(state="normal"); self.terms_button.configure(state="normal")
+        self.open_button.configure(state="disabled"); self.folder_button.configure(state="disabled")
 
     def confirm_preview(self):
         if not self.current_preview or self.busy: return
         preview = self.current_preview; self.busy = True; self.status.set(self.tr("working"))
         self.confirm_button.configure(state="disabled"); self.cancel_button.configure(state="disabled"); self.mask_selected_button.configure(state="disabled")
+        self.unmask_button.configure(state="disabled"); self.terms_button.configure(state="disabled")
         def work():
             try:
                 result = commit_mask_preview(preview, history=self.history)
@@ -306,8 +361,10 @@ class MaskingToolApp:
         if self.busy: return
         self._cancel_pending_review()
         self.current_preview = None; self.status.set(self.tr("cancelled")); self.details.set("")
+        self.last_mask_preview = None
         self.confirm_button.configure(state="disabled"); self.cancel_button.configure(state="disabled"); self.mask_selected_button.configure(state="disabled")
-        self.diff.configure(state="normal"); self.diff.delete("1.0", "end"); self.diff.configure(state="disabled")
+        self.unmask_button.configure(state="disabled")
+        self._show_diff("", "")
 
     def _confirm_restore(self, path, selected_vault_id=None):
         self.busy = False; self.status.set(self.tr("restore_detected")); self.details.set(str(path)); self.drop.configure(text=self.tr("drop"))
@@ -321,6 +378,7 @@ class MaskingToolApp:
         ttk.Button(buttons, text=self.tr("restore_no"), command=win.destroy).pack(side="left", padx=8)
 
     def _success(self, result: ProcessResult):
+        self.last_mask_preview = self.current_preview if result.action == "mask" else None
         self.busy, self.output_path, self.current_result, self.current_preview = False, result.output_path, result, None
         if self.review_id and result.action == "mask":
             from maskingtool import review as _review
@@ -342,10 +400,15 @@ class MaskingToolApp:
         self.details.set(f"{self.tr('output')}: {result.output_path}\nVault ID: {result.vault_id}; {counts}{warning}")
         self.drop.configure(text=self.tr("drop_next")); self.open_button.configure(state="normal"); self.folder_button.configure(state="normal")
         self.mask_selected_button.configure(state="normal" if result.action == "mask" else "disabled")
+        self.unmask_button.configure(state="normal" if result.action == "mask" else "disabled")
+        self.terms_button.configure(state="normal")
         self.confirm_button.configure(state="disabled"); self.cancel_button.configure(state="disabled")
         self._show_diff(result.before_text, result.after_text)
 
     def _failure(self, exc):
+        if self.current_preview:
+            self._preview_ready(self.current_preview)
+        self.terms_button.configure(state="normal")
         self.busy = False; self.status.set(self.tr("failed")); self.details.set(f"{type(exc).__name__}: {exc}")
         self.drop.configure(text=self.tr("drop")); messagebox.showerror(self.tr("failed"), str(exc))
 
@@ -360,10 +423,78 @@ class MaskingToolApp:
             if selected: win.destroy(); self.process(path, exc.candidates[selected[0]].vault_id, restore_confirmed=True)
         ttk.Button(win, text=self.tr("use_vault"), command=use).pack(pady=10)
 
+    def _select_panel(self, panel):
+        self.selection_panel = panel
+
     def _show_diff(self, before, after):
+        self.diff_rows = review_diff(before, after)
+        self.token_spans = []
+        preview = self.current_preview or self.last_mask_preview
+        replacements = replacement_ranges(before, after, preview.vault) if preview and before == preview.before_text else []
+        token_offsets = {start for start, _, _, _, _ in replacements}
         self.diff.configure(state="normal"); self.diff.delete("1.0", "end")
-        for kind, line in diff_lines(before, after): self.diff.insert("end", {"delete": "- ", "insert": "+ ", "equal": "  "}[kind] + line, kind)
+        for row in self.diff_rows:
+            cursor = 0
+            for match in TOKEN_PATTERN.finditer(row.text) if row.kind == "insert" else ():
+                if row.document_start + match.start() - 2 not in token_offsets:
+                    continue
+                self.diff.insert("end", row.text[cursor:match.start()], row.kind)
+                start = self.diff.index("end-1c")
+                self.diff.insert("end", match.group(), row.kind)
+                self.diff.tag_add("mask_token", start, "end-1c")
+                self.token_spans.append((start, self.diff.index("end-1c")))
+                cursor = match.end()
+            self.diff.insert("end", row.text[cursor:], row.kind)
+        self.diff.tag_raise("sel")
         self.diff.configure(state="disabled")
+
+    def _finish_token_selection(self, event):
+        """Run after Tk's normal click/drag/keyboard selection bindings."""
+        clicked = None
+        if event.type == tk.EventType.ButtonRelease:
+            index = self.diff.index(f"@{event.x},{event.y}")
+            bounds = self.diff.bbox(index)
+            # Tk rounds empty space to the nearest character: don't select it.
+            if bounds:
+                x, y, width, height = bounds
+                if x <= event.x < x + width and y <= event.y < y + height:
+                    clicked = index
+        rows = self.diff_rows
+        self.root.after_idle(lambda: self._snap_token_selection(clicked)
+                             if self.diff.winfo_exists() and self.diff_rows is rows else None)
+
+    def _snap_token_selection(self, clicked=None):
+        """Visibly select complete generated tokens without changing any rules."""
+        if self.busy:
+            return
+        selected = self.diff.tag_ranges("sel")
+        start, end = (selected[0], selected[-1]) if selected else (None, None)
+        # A shared Tk tag merges adjacent ranges; retain each token's own bounds.
+        for a, b in self.token_spans:
+            if start is not None:
+                if self.diff.compare(start, "<", b) and self.diff.compare(end, ">", a):
+                    if self.diff.compare(a, "<", start): start = a
+                    if self.diff.compare(b, ">", end): end = b
+            elif clicked is not None and self.diff.compare(a, "<=", clicked) and self.diff.compare(clicked, "<", b):
+                start, end = a, b
+        if start is not None:
+            self._select_panel(self.diff)
+            self.diff.tag_remove("sel", "1.0", "end")
+            self.diff.tag_add("sel", start, end)
+            self.diff.tag_raise("sel")
+
+    def _selection(self):
+        preview = self.current_preview or self.last_mask_preview
+        widget = self.selection_panel
+        if self.busy or preview is None or widget is None:
+            return None
+        try:
+            start = len(widget.get("1.0", "sel.first"))
+            end = len(widget.get("1.0", "sel.last"))
+            return map_diff_selection(preview.before_text, preview.masked_text, preview.vault,
+                                      self.diff_rows, start, end)
+        except (tk.TclError, ValueError):
+            return None
 
     def show_history(self):
         win = tk.Toplevel(self.root); win.title(self.tr("history_title")); win.geometry("900x420")
@@ -381,51 +512,85 @@ class MaskingToolApp:
         ttk.Button(win, text=self.tr("use_current"), command=use_vault).pack(pady=(0, 10))
 
     def mask_selected(self):
-        if not self.current_preview and (not self.current_result or self.current_result.action != "mask"): return
-        try:
-            term = self.diff.get("sel.first", "sel.last").strip()
-        except tk.TclError:
-            term = ""
-        if not term or "\n" in term or "\r" in term:
+        selected = self._selection()
+        if selected is None or not selected.text.strip():
             messagebox.showinfo(self.tr("select_text_title"), self.tr("select_text_body")); return
-        win = tk.Toplevel(self.root); win.title(self.tr("type_title")); win.geometry("420x150"); win.transient(self.root); win.grab_set()
-        ttk.Label(win, text=f"{self.tr('type_body')}\n\n“{term}”", padding=12).pack()
-        buttons = ttk.Frame(win); buttons.pack()
-        def choose(entity_type):
-            win.destroy(); self.session_terms.append(term); self._apply_manual_term(term, entity_type)
-        ttk.Button(buttons, text=self.tr("person"), command=lambda: choose("PERSON")).pack(side="left", padx=8)
-        ttk.Button(buttons, text=self.tr("organization"), command=lambda: choose("ORG")).pack(side="left", padx=8)
+        win = tk.Toplevel(self.root); win.title(self.tr("type_title")); win.geometry("580x300")
+        win.transient(self.root); win.grab_set()
+        ttk.Label(win, text=self.tr("type_body"), padding=12).pack()
+        box = tk.Text(win, height=7, wrap="word"); box.pack(fill="both", expand=True, padx=12)
+        box.insert("1.0", selected.text); box.configure(state="disabled")
+        ttk.Label(win, text=self.tr("rule_note"), wraplength=550, padding=8).pack()
+        buttons = ttk.Frame(win); buttons.pack(pady=10)
+        def choose(kind):
+            win.destroy(); self._edit_rules(term=selected.text, entity_type=kind)
+        for kind, label in (("PERSON", "person"), ("ORG", "organization"), ("URL", "url"), ("TEXT", "text")):
+            ttk.Button(buttons, text=self.tr(label), command=lambda k=kind: choose(k)).pack(side="left", padx=6)
 
-    def _apply_manual_term(self, term, entity_type):
+    def unmask_selected(self):
+        selected = self._selection()
+        if selected is None or not selected.masked_originals:
+            messagebox.showinfo(self.tr("select_text_title"), self.tr("select_masked")); return
+        self._edit_rules(undo=selected.masked_originals)
+
+    def _edit_rules(self, **operation):
         if self.busy: return
-        result, preview = self.current_result, self.current_preview; self.busy = True
-        self.status.set(self.tr("working")); self.mask_selected_button.configure(state="disabled")
+        preview = self.current_preview or self.last_mask_preview
+        if preview is None: return
+        self.busy = True; self.status.set(self.tr("working"))
+        for button in (self.mask_selected_button, self.unmask_button, self.confirm_button, self.cancel_button, self.terms_button):
+            button.configure(state="disabled")
         def work():
             try:
-                add_deny_term(term, entity_type)
-                if preview:
-                    corrected = prepare_mask_preview(preview.input_path)
-                    self.root.after(0, lambda: self._preview_ready(corrected))
-                else:
-                    corrected = remask_with_existing_vault(result.input_path, result.vault_id, history=self.history)
-                    self.root.after(0, lambda: self._manual_success(corrected))
+                corrected = edit_preview(preview, **operation)
+                self.root.after(0, lambda: success(corrected))
             except Exception as exc:
-                self.root.after(0, lambda error=exc: self._failure(error))
+                self.root.after(0, lambda error=exc: failure(error))
+        def success(corrected):
+            if operation.get("term") is not None:
+                self.session_terms = list(dict.fromkeys([*self.session_terms, operation["term"]]))
+            for term in operation.get("undo", []):
+                self.session_terms = [t for t in self.session_terms if t != term]
+            self._preview_ready(corrected)
+            if operation.get("undo"):
+                self.details.set(self.tr("undo_note") + "\n" + self.tr("rule_note"))
+        def failure(error):
+            self._preview_ready(preview)
+            self._failure(error)
         threading.Thread(target=work, daemon=True).start()
 
-    def _manual_success(self, result):
-        self._success(result)
-        messagebox.showinfo(self.tr("added"), self.tr("added_body"))
-
     def show_custom_terms(self):
-        win = tk.Toplevel(self.root); win.title(self.tr("terms_title")); win.geometry("620x420")
-        tree = ttk.Treeview(win, columns=("type", "term"), show="headings")
-        tree.heading("type", text=self.tr("type")); tree.heading("term", text=self.tr("term"))
-        tree.column("type", width=140); tree.column("term", width=430)
-        for item in load_manual_terms():
-            label = self.tr("person" if item["entity_type"] == "PERSON" else "organization")
-            tree.insert("", "end", values=(label, item["term"]))
+        if self.busy: return
+        try:
+            records = loader.rule_records()
+        except Exception as exc:
+            self._failure(exc); return
+        win = tk.Toplevel(self.root); win.title(self.tr("terms_title")); win.geometry("900x480")
+        columns = ("list", "type", "term", "source")
+        tree = ttk.Treeview(win, columns=columns, show="headings")
+        for col, width in zip(columns, (90, 80, 430, 180), strict=True):
+            tree.heading(col, text=self.tr(col)); tree.column(col, width=width)
+        for i, item in enumerate(records):
+            tree.insert("", "end", iid=str(i), values=(self.tr(item["list"]), item["entity_type"],
+                        item["term"].replace("\r", "\\r").replace("\n", "\\n"), item["source"]))
         tree.pack(fill="both", expand=True, padx=10, pady=10)
+        ttk.Label(win, text=self.tr("rule_note"), padding=8).pack()
+        def delete():
+            selected = tree.selection()
+            if not selected: return
+            item = records[int(selected[0])]
+            win.destroy()
+            if self.current_preview or self.last_mask_preview:
+                self._edit_rules(remove_rule=item)
+            else:
+                try:
+                    if item["list"] == "allow": loader.remove_allow_term(item["term"])
+                    else: loader.remove_deny_term(item["term"])
+                except Exception as exc:
+                    self._failure(exc)
+                else:
+                    self.show_custom_terms()
+        ttk.Button(win, text=self.tr("delete_rule"), command=delete).pack(pady=8)
 
     def show_tutorial(self):
         existing = getattr(self, "active_tour", None)

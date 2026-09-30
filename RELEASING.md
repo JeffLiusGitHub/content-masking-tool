@@ -1,5 +1,21 @@
 # Release packaging and distribution
 
+## Authorized testing prerelease: v1.3.0-rc.1 (2026-09-30)
+
+The maintainer explicitly authorized pushing and publishing this new GitHub
+testing prerelease with unsigned test artifacts. This exception applies only
+to `v1.3.0-rc.1`: it is not a formal signed release and must not be marked Latest.
+Native application, MSI/PKG and MCPB versions are `1.3.0`; the Git tag and release
+title carry `-rc.1`, following the prior test-tag/native-base convention. Test
+installers must retain `unsigned-test-only` filenames. Production signing and
+notarization gates remain unchanged, and v1.2.0 remains immutable.
+
+Build Windows x64 and macOS arm64/x86_64 from the same clean commit using the
+existing Actions matrix, including source tests, frozen feature/MCP smoke and
+installer lifecycle checks. Upload verified assets, aggregate SHA-256 checksums
+and build provenance to a draft, then publish it as a prerelease after checks
+pass. Do not reuse locally built 1.2.0 debug binaries for this release.
+
 > **Status as of 2026-09-18**
 >
 > - **Released baseline:** v1.2.0 remains the existing unsigned PyInstaller

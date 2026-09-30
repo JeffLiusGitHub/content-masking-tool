@@ -9,6 +9,8 @@ The principal runtime dependencies are:
 |---|---|---|
 | Microsoft Presidio Analyzer / Anonymizer | MIT | https://github.com/data-privacy-stack/presidio |
 | markdown-it-py | MIT | https://github.com/executablebooks/markdown-it-py |
+| Beautiful Soup / Soup Sieve | MIT | https://www.crummy.com/software/BeautifulSoup/ / https://github.com/facelessuser/soupsieve |
+| filelock | MIT | https://github.com/tox-dev/filelock |
 | python-docx | MIT | https://github.com/python-openxml/python-docx |
 | PyMuPDF / MuPDF | GNU AGPL-3.0 or Artifex commercial license | https://github.com/pymupdf/PyMuPDF |
 | platformdirs | MIT | https://github.com/tox-dev/platformdirs |
