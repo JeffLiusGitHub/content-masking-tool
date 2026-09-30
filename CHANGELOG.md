@@ -27,6 +27,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - GUI worker results are dispatched through the main UI thread, avoiding a
   macOS Tk crash during review operations.
+- Failure to load the optional native drag-and-drop library no longer prevents
+  GUI startup. The window explicitly offers Choose file instead.
 - Canonical DOCX table previews concatenate adjacent formatting runs without
   inserting spaces that could defeat exact deny-list matches.
 - Selecting a partially masked URL now resolves the selection to the original

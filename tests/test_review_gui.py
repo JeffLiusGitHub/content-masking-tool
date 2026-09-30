@@ -4,6 +4,7 @@ import tkinter as tk
 import os
 import sys
 import threading
+from types import SimpleNamespace
 
 import pytest
 
@@ -205,3 +206,22 @@ def test_worker_results_are_dispatched_only_by_the_ui_thread(app, tmp_path, monk
     app._stop_ui_callbacks()
     app._post_ui(lambda: pytest.fail("Closed windows must discard late results"))
     app._drain_ui_callbacks()
+
+
+def test_unavailable_drag_library_keeps_file_picker_and_review_usable(app, tmp_path, monkeypatch):
+    def unavailable(root):
+        raise RuntimeError("Unavailable optional tkdnd library")
+
+    monkeypatch.setattr(gui.tk, "Tk", lambda: app.root)
+    monkeypatch.setattr(gui, "TkinterDnD", SimpleNamespace(_require=unavailable))
+    monkeypatch.setattr(gui, "DND_FILES", "DND_Files")
+    root = gui.create_root()
+    assert root is app.root and not root._maskingtool_dnd_available
+    assert "Choose file" in app.tr("subtitle")
+    path = tmp_path / "picker.txt"
+    path.write_text("https://example.test/picker", encoding="utf-8")
+    monkeypatch.setattr(gui.filedialog, "askopenfilename", lambda **kwargs: str(path))
+    app.choose_file()
+    finish_work(app)
+    assert "⟦URL_001⟧" in app.current_preview.masked_text
+    assert str(app.confirm_button["state"]) == "normal"

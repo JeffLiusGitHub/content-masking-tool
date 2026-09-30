@@ -87,6 +87,8 @@ TEXT = {
 }
 
 TEXT["en"].update({
+    "picker_subtitle": "Drag-and-drop is unavailable on this system. Use Choose file; masking and restore remain available.",
+    "picker_drop": "Click here or use Choose file to open a document",
     "tour_back": "Back", "tour_next": "Next", "tour_skip": "Skip", "tour_finish": "Finish",
     "tour_language_title": "Choose your language", "tour_language_body": "Use this selector at any time. English is the default and your choice is remembered.",
     "tour_drop_title": "1. Add a document", "tour_drop_body": "Drop one file here, or click the area to browse. Supported: text, Markdown, DOCX and PDF.",
@@ -98,6 +100,8 @@ TEXT["en"].update({
     "tour_restore_title": "5. Restore a masked file", "tour_restore_body": "Drop the .masked file back into the same area. A clear confirmation asks whether to restore names; restored output never overwrites the masked file.",
 })
 TEXT["zh"].update({
+    "picker_subtitle": "当前系统的拖拽扩展不可用，请点击“选择文件”；遮罩和还原功能仍可正常使用。",
+    "picker_drop": "点击此处或“选择文件”打开文档",
     "tour_back": "上一步", "tour_next": "下一步", "tour_skip": "跳过", "tour_finish": "完成",
     "tour_language_title": "选择界面语言", "tour_language_body": "可随时在这里切换。默认使用英文，软件会记住你的选择。",
     "tour_drop_title": "1. 添加文档", "tour_drop_body": "把一个文件拖到这里，也可以点击此区域选择文件。支持文本、Markdown、DOCX 和 PDF。",
@@ -214,6 +218,7 @@ class CoachTour:
 class MaskingToolApp:
     def __init__(self, root: tk.Tk):
         self.root, self.history = root, HistoryStore()
+        self.dnd_available = bool(DND_FILES) and getattr(root, "_maskingtool_dnd_available", True)
         self.output_path = self.current_path = None
         self.current_result = None
         self.current_preview = None
@@ -233,7 +238,11 @@ class MaskingToolApp:
         if not config.load_settings().get("gui_tutorial_seen", False):
             self.root.after(250, self.show_tutorial)
 
-    def tr(self, key): return translated(self.language, key)
+    def tr(self, key):
+        if not self.dnd_available:
+            key = {"subtitle": "picker_subtitle", "drop": "picker_drop",
+                   "drop_next": "picker_drop"}.get(key, key)
+        return translated(self.language, key)
 
     def _post_ui(self, callback):
         # Workers must never enter Tcl, even via root.after (unsafe on macOS).
@@ -272,7 +281,7 @@ class MaskingToolApp:
         self.subtitle = ttk.Label(shell); self.subtitle.pack(anchor="w", pady=(2, 12))
         self.drop = tk.Label(shell, relief="ridge", bd=2, bg="#f4f6f8", fg="#354052", height=7, font=("Segoe UI", 13), cursor="hand2")
         self.drop.pack(fill="x"); self.drop.bind("<Button-1>", lambda _e: self.choose_file())
-        if DND_FILES:
+        if self.dnd_available:
             self.drop.drop_target_register(DND_FILES); self.drop.dnd_bind("<<Drop>>", self._on_drop)
         bar = ttk.Frame(shell); bar.pack(fill="x", pady=10)
         self.choose_button = ttk.Button(bar, command=self.choose_file); self.choose_button.pack(side="left")
@@ -685,8 +694,24 @@ def _hide_console_on_windows():
         except OSError: pass
 
 
+def create_root():
+    # Load the optional tkdnd extension on an already-owned Tk root. The wrapper
+    # installs its widget methods at import time; a library-load failure must
+    # not prevent file-picker access or mandatory human review.
+    root = tk.Tk()
+    root._maskingtool_dnd_available = False
+    if TkinterDnD and DND_FILES:
+        try:
+            root.TkdndVersion = TkinterDnD._require(root)
+            root._maskingtool_dnd_available = True
+        except (RuntimeError, tk.TclError) as exc:
+            print(f"Drag-and-drop unavailable; use Choose file: {exc.__context__ or exc}",
+                  file=sys.stderr)
+    return root
+
+
 def main(review_id: str | None = None, file: str | None = None):
-    root = TkinterDnD.Tk() if TkinterDnD else tk.Tk(); _hide_console_on_windows()
+    root = create_root(); _hide_console_on_windows()
     app = MaskingToolApp(root)
     if review_id and file:
         _attach_review(app, root, review_id, file)

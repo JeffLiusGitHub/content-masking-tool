@@ -91,9 +91,9 @@ jobs:
           }
 
           packaging/bootstrapper/test_windows_upgrade.ps1 `
-            -OldSetupPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.exe') `
-            -OldMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-bootstrapper-unsigned-test-only.json') `
-            -OldMsiMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.1-unsigned-test-only.json') `
+            -OldSetupPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.2-bootstrapper-unsigned-test-only.exe') `
+            -OldMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.2-bootstrapper-unsigned-test-only.json') `
+            -OldMsiMetadataPath (Join-Path $oldDir 'content-masking-tool-windows-x64-1.2.2-unsigned-test-only.json') `
             -NewSetupPath $newSetup[0].FullName `
             -NewMetadataPath $newSetupMetadata[0].FullName `
             -NewMsiMetadataPath $newMsiMetadata[0].FullName

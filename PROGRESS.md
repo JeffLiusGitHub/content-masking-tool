@@ -22,6 +22,11 @@ closed windows discard late callbacks. A regression exercises background load,
 unmask and confirmation while rejecting any worker-thread Tk scheduling. The
 updated source suite passes 225 tests; replacement CI artifacts are required.
 
+Frozen Intel macOS validation additionally exposed an unavailable native tkdnd
+library. The optional extension now loads after creating the owned Tk root;
+failure preserves the file picker and review window, with an explicit UI notice.
+Windows upgrade fixture paths are aligned with the downloaded 1.2.2 assets.
+
 **Smart token selection (2026-09-30):** Clicking a generated token selects its
 whole span in blue. Partial mouse/keyboard selections expand to whole tokens;
 the highlight persists when focus moves to the action button. Ordinary text
