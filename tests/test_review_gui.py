@@ -3,6 +3,7 @@ import time
 import tkinter as tk
 import os
 import sys
+import threading
 
 import pytest
 
@@ -179,3 +180,28 @@ def test_adjacent_tokens_select_individually(app, tmp_path):
     app._snap_token_selection(app.diff.index(f"{start}+3c"))
     assert app.diff.get("sel.first", "sel.last") == first
     assert app._selection().text == "A"
+
+
+def test_worker_results_are_dispatched_only_by_the_ui_thread(app, tmp_path, monkeypatch):
+    main_thread = threading.get_ident()
+    real_after = app.root.after
+
+    def main_thread_after(*args, **kwargs):
+        assert threading.get_ident() == main_thread, "Worker called Tcl/Tk"
+        return real_after(*args, **kwargs)
+
+    monkeypatch.setattr(app.root, "after", main_thread_after)
+    path = tmp_path / "worker.txt"
+    path.write_text("https://example.test/worker", encoding="utf-8")
+    app.process(path)
+    finish_work(app)
+    assert app.current_preview is not None
+    app._edit_rules(undo=["https://example.test/worker"])
+    finish_work(app)
+    assert app.current_preview.masked_text == path.read_text(encoding="utf-8")
+    app.confirm_preview()
+    finish_work(app)
+    assert app.current_result.output_path.exists()
+    app._stop_ui_callbacks()
+    app._post_ui(lambda: pytest.fail("Closed windows must discard late results"))
+    app._drain_ui_callbacks()

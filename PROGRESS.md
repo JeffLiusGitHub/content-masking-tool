@@ -16,6 +16,12 @@ including the new frozen feature smoke and Windows upgrade from v1.2.2-test.3.
 Production signing remains unavailable; customer IE laptop acceptance is not
 claimed. See RELEASING.md for the narrowly authorized prerelease exception.
 
+The first macOS CI run exposed a Tk crash caused by worker-thread calls to
+`root.after`. Workers now enqueue results for a main-thread event-loop dispatcher;
+closed windows discard late callbacks. A regression exercises background load,
+unmask and confirmation while rejecting any worker-thread Tk scheduling. The
+updated source suite passes 225 tests; replacement CI artifacts are required.
+
 **Smart token selection (2026-09-30):** Clicking a generated token selects its
 whole span in blue. Partial mouse/keyboard selections expand to whole tokens;
 the highlight persists when focus moves to the action button. Ordinary text

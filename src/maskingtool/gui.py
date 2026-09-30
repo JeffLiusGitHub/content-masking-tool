@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -221,17 +222,47 @@ class MaskingToolApp:
         self.review_id = None
         self.session_terms = []
         self.busy = False
+        self._ui_callbacks = queue.SimpleQueue()
+        self._ui_closed = False
+        self._ui_poll = None
         saved = config.load_settings().get("gui_language", "en")
         self.language = saved if saved in TEXT else "en"
         root.geometry("1180x760"); root.minsize(1000, 600)
         self._build(); self._apply_language()
+        self._ui_poll = self.root.after(40, self._drain_ui_callbacks)
         if not config.load_settings().get("gui_tutorial_seen", False):
             self.root.after(250, self.show_tutorial)
 
     def tr(self, key): return translated(self.language, key)
 
+    def _post_ui(self, callback):
+        # Workers must never enter Tcl, even via root.after (unsafe on macOS).
+        if not self._ui_closed:
+            self._ui_callbacks.put(callback)
+
+    def _drain_ui_callbacks(self):
+        self._ui_poll = None
+        try:
+            while not self._ui_closed:
+                try:
+                    callback = self._ui_callbacks.get_nowait()
+                except queue.Empty:
+                    break
+                callback()
+        finally:
+            if not self._ui_closed:
+                self._ui_poll = self.root.after(40, self._drain_ui_callbacks)
+
+    def _stop_ui_callbacks(self):
+        self._ui_closed = True
+        if self._ui_poll is not None:
+            self.root.after_cancel(self._ui_poll)
+            self._ui_poll = None
+
     def _build(self):
         shell = ttk.Frame(self.root, padding=16); shell.pack(fill="both", expand=True)
+        shell.bind("<Destroy>", lambda event: self._stop_ui_callbacks()
+                   if event.widget is shell else None)
         top = ttk.Frame(shell); top.pack(fill="x")
         ttk.Label(top, text="Content Masking Tool", font=("Segoe UI", 18, "bold")).pack(side="left")
         self.language_var = tk.StringVar(value="English" if self.language == "en" else "中文")
@@ -312,16 +343,16 @@ class MaskingToolApp:
                 action = "restore" if selected_vault_id else detect_file_action(path, self.history)
                 if action == "mask":
                     preview = prepare_mask_preview(path)
-                    self.root.after(0, lambda: self._preview_ready(preview))
+                    self._post_ui(lambda: self._preview_ready(preview))
                 elif not restore_confirmed:
-                    self.root.after(0, lambda: self._confirm_restore(path, selected_vault_id))
+                    self._post_ui(lambda: self._confirm_restore(path, selected_vault_id))
                 else:
                     result = process_dropped_file(path, history=self.history, selected_vault_id=selected_vault_id)
-                    self.root.after(0, lambda: self._success(result))
+                    self._post_ui(lambda: self._success(result))
             except AmbiguousVaultError as exc:
-                self.root.after(0, lambda error=exc: self._choose_vault(path, error))
+                self._post_ui(lambda error=exc: self._choose_vault(path, error))
             except Exception as exc:
-                self.root.after(0, lambda error=exc: self._failure(error))
+                self._post_ui(lambda error=exc: self._failure(error))
         threading.Thread(target=work, daemon=True).start()
 
     def _preview_ready(self, preview):
@@ -342,9 +373,9 @@ class MaskingToolApp:
         def work():
             try:
                 result = commit_mask_preview(preview, history=self.history)
-                self.root.after(0, lambda: self._success(result))
+                self._post_ui(lambda: self._success(result))
             except Exception as exc:
-                self.root.after(0, lambda error=exc: self._failure(error))
+                self._post_ui(lambda error=exc: self._failure(error))
         threading.Thread(target=work, daemon=True).start()
 
     def _cancel_pending_review(self):
@@ -543,9 +574,9 @@ class MaskingToolApp:
         def work():
             try:
                 corrected = edit_preview(preview, **operation)
-                self.root.after(0, lambda: success(corrected))
+                self._post_ui(lambda: success(corrected))
             except Exception as exc:
-                self.root.after(0, lambda error=exc: failure(error))
+                self._post_ui(lambda error=exc: failure(error))
         def success(corrected):
             if operation.get("term") is not None:
                 self.session_terms = list(dict.fromkeys([*self.session_terms, operation["term"]]))
